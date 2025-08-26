@@ -1,0 +1,112 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+logs/
+temp/
+examples/output/
+*.cif
+*.obj
+*.mtl
+*.usdz
+*.usd
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Large files and build artifacts
+conversion_results/
+intermediate_files/
+*.log
+
+# Node modules (if any)
+node_modules/
+
+# Docker
+.dockerignore
+
+# Conda environment
+.conda/
+
+# TinyUSDZ build files
+tinyusdz/build/
+tinyusdz/.github/
+tinyusdz/android/
+tinyusdz/benchmarks/
+tinyusdz/screenshots/
+tinyusdz/tests/
+tinyusdz/web/dist/
+
+# USD resources cache
+usd_resources/cache/
+
+# API keys and secrets (if any)
+*.key
+*.pem
+*.p12
+config/secrets.py
+config/api_keys.py

@@ -1,0 +1,40 @@
+name: cif-usdz-converter
+
+services:
+  cif-converter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cif-usdz-converter
+    ports:
+      - "8000:8000"
+    volumes:
+      # 挂载日志目录
+      - ./logs:/app/logs
+      # 挂载示例文件
+      - ./examples:/app/examples
+      # 挂载输出目录
+      - ./output:/app/output
+      # 挂载转换结果目录
+      - ./conversion_results:/app/conversion_results
+      # 挂载临时目录
+      - ./temp:/app/temp
+      # 可选：挂载自定义CIF文件目录
+      - ./user_files:/app/user_files:ro
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  default:
+    name: cif-converter-network 

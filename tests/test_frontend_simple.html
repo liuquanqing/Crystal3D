@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简单测试</title>
+</head>
+<body>
+    <h1>文件上传测试</h1>
+    <input type="file" id="fileInput" accept=".cif">
+    <div id="result"></div>
+    
+    <script>
+        console.log('页面加载完成');
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            console.log('文件选择事件触发');
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                console.log('选择的文件:', file.name);
+                document.getElementById('result').textContent = '选择了文件: ' + file.name;
+            }
+        });
+    </script>
+</body>
+</html> 
