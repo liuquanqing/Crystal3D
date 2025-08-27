@@ -207,6 +207,7 @@ class CrystalToolkitRenderer {
                 targetElement.requestFullscreen().then(() => {
                     setTimeout(() => {
                         this.resizeToContainer(false); // 全屏时不重置相机
+                        this.createFullscreenControls(); // 创建全屏控制面板
                         console.log('📺 已进入全屏模式');
                     }, 200);
                 }).catch(err => {
@@ -220,6 +221,7 @@ class CrystalToolkitRenderer {
             document.exitFullscreen().then(() => {
                 setTimeout(() => {
                     this.resizeToContainer(false); // 退出全屏时不重置相机
+                    this.removeFullscreenControls(); // 移除全屏控制面板
                     console.log('📱 已退出全屏模式');
                 }, 200);
             });
@@ -238,6 +240,209 @@ class CrystalToolkitRenderer {
         });
         
         console.log('📸 截图已保存');
+    }
+    
+    // 创建全屏控制面板
+    createFullscreenControls() {
+        // 检查是否已存在控制面板
+        if (document.getElementById('fullscreenRenderControls')) {
+            return;
+        }
+        
+        // 确保只在全屏模式下创建
+        if (!document.fullscreenElement) {
+            console.log('⚠️ 非全屏模式，跳过创建控制面板');
+            return;
+        }
+        
+        const previewCard = this.container.closest('.card');
+        if (!previewCard) return;
+        
+        // 创建控制面板容器
+        const controlsPanel = document.createElement('div');
+        controlsPanel.id = 'fullscreenRenderControls';
+        controlsPanel.style.cssText = `
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1000;
+            min-width: 600px;
+            max-width: 80vw;
+        `;
+        
+        // 创建控制面板内容
+        controlsPanel.innerHTML = `
+            <div style="display: flex; gap: 30px; align-items: center; justify-content: center;">
+                <!-- 球体大小控制 -->
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <i class="bi bi-circle-fill" style="color: #3b82f6;"></i> 球体大小
+                    </label>
+                    <input type="range" id="fullscreenScaleFactor" 
+                           min="0.3" max="3" step="0.1" value="${this.renderParams.scaleFactor}"
+                           style="width: 100%; margin-bottom: 4px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280;">
+                        <span>小</span>
+                        <span>当前: <span id="fullscreenScaleValue" style="font-weight: 600;">${this.renderParams.scaleFactor.toFixed(1)}</span></span>
+                        <span>大</span>
+                    </div>
+                </div>
+                
+                <!-- 显示选项 -->
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <i class="bi bi-eye" style="color: #10b981;"></i> 显示选项
+                    </label>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" id="fullscreenShowAtoms" ${this.renderParams.showAtoms ? 'checked' : ''}>
+                            <i class="bi bi-circle-fill" style="color: #3b82f6;"></i> 原子
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" id="fullscreenShowBonds" ${this.renderParams.showBonds ? 'checked' : ''}>
+                            <i class="bi bi-dash-lg" style="color: #6b7280;"></i> 化学键
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" id="fullscreenShowUnitCell" ${this.renderParams.showUnitCell ? 'checked' : ''}>
+                            <i class="bi bi-bounding-box" style="color: #06b6d4;"></i> 晶胞
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 视角控制 -->
+                <div style="flex: 0 0 auto;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <i class="bi bi-arrows-move" style="color: #f59e0b;"></i> 视角控制
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="fullscreenResetBtn" 
+                                style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 12px;"
+                                title="重置视角">
+                            <i class="bi bi-house-fill"></i>
+                        </button>
+                        <button id="fullscreenSnapshotBtn" 
+                                style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; font-size: 12px;"
+                                title="保存截图">
+                            <i class="bi bi-camera-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加到全屏容器
+        previewCard.appendChild(controlsPanel);
+        
+        // 绑定事件
+        this.bindFullscreenControls();
+        
+        console.log('🎛️ 全屏控制面板已创建');
+    }
+    
+    // 移除全屏控制面板
+    removeFullscreenControls() {
+        const controlsPanel = document.getElementById('fullscreenRenderControls');
+        if (controlsPanel) {
+            controlsPanel.remove();
+            console.log('🗑️ 全屏控制面板已移除');
+        }
+    }
+    
+    // 绑定全屏控制面板事件
+    bindFullscreenControls() {
+        // 球体大小控制
+        const scaleSlider = document.getElementById('fullscreenScaleFactor');
+        const scaleValue = document.getElementById('fullscreenScaleValue');
+        if (scaleSlider && scaleValue) {
+            scaleSlider.addEventListener('input', (e) => {
+                this.renderParams.scaleFactor = parseFloat(e.target.value);
+                scaleValue.textContent = parseFloat(e.target.value).toFixed(1);
+                
+                // 同步更新原有控制面板的值
+                const originalScaleSlider = document.getElementById('scaleFactor');
+                const originalScaleValue = document.getElementById('scaleValue');
+                if (originalScaleSlider) {
+                    originalScaleSlider.value = e.target.value;
+                }
+                if (originalScaleValue) {
+                    originalScaleValue.textContent = parseFloat(e.target.value).toFixed(1);
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        // 显示选项
+        const showAtoms = document.getElementById('fullscreenShowAtoms');
+        const showBonds = document.getElementById('fullscreenShowBonds');
+        const showUnitCell = document.getElementById('fullscreenShowUnitCell');
+        
+        if (showAtoms) {
+            showAtoms.addEventListener('change', (e) => {
+                this.renderParams.showAtoms = e.target.checked;
+                
+                // 同步更新原有控制面板的值
+                const originalShowAtoms = document.getElementById('showAtoms');
+                if (originalShowAtoms) {
+                    originalShowAtoms.checked = e.target.checked;
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        if (showBonds) {
+            showBonds.addEventListener('change', (e) => {
+                this.renderParams.showBonds = e.target.checked;
+                
+                // 同步更新原有控制面板的值
+                const originalShowBonds = document.getElementById('showBonds');
+                if (originalShowBonds) {
+                    originalShowBonds.checked = e.target.checked;
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        if (showUnitCell) {
+            showUnitCell.addEventListener('change', (e) => {
+                this.renderParams.showUnitCell = e.target.checked;
+                
+                // 同步更新原有控制面板的值
+                const originalShowUnitCell = document.getElementById('showUnitCell');
+                if (originalShowUnitCell) {
+                    originalShowUnitCell.checked = e.target.checked;
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        // 视角控制按钮
+        const resetBtn = document.getElementById('fullscreenResetBtn');
+        const snapshotBtn = document.getElementById('fullscreenSnapshotBtn');
+        
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.resetCamera();
+            });
+        }
+        
+        if (snapshotBtn) {
+            snapshotBtn.addEventListener('click', () => {
+                this.takeSnapshot();
+            });
+        }
+        
+        console.log('🔗 全屏控制面板事件已绑定');
     }
     
     // 绑定UI控件
@@ -274,6 +479,17 @@ class CrystalToolkitRenderer {
             scaleFactor.addEventListener('input', (e) => {
                 this.renderParams.scaleFactor = parseFloat(e.target.value);
                 scaleValue.textContent = parseFloat(e.target.value).toFixed(1);
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenScaleSlider = document.getElementById('fullscreenScaleFactor');
+                const fullscreenScaleValue = document.getElementById('fullscreenScaleValue');
+                if (fullscreenScaleSlider) {
+                    fullscreenScaleSlider.value = e.target.value;
+                }
+                if (fullscreenScaleValue) {
+                    fullscreenScaleValue.textContent = parseFloat(e.target.value).toFixed(1);
+                }
+                
                 this.updateRender(true); // 保持相机位置，不影响视角
             });
         }
@@ -289,6 +505,13 @@ class CrystalToolkitRenderer {
             showAtoms.checked = this.renderParams.showAtoms;
             showAtoms.addEventListener('change', (e) => {
                 this.renderParams.showAtoms = e.target.checked;
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenShowAtoms = document.getElementById('fullscreenShowAtoms');
+                if (fullscreenShowAtoms) {
+                    fullscreenShowAtoms.checked = e.target.checked;
+                }
+                
                 this.updateRender(true); // 保持相机位置
             });
         }
@@ -298,6 +521,13 @@ class CrystalToolkitRenderer {
             showBonds.checked = this.renderParams.showBonds;
             showBonds.addEventListener('change', (e) => {
                 this.renderParams.showBonds = e.target.checked;
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenShowBonds = document.getElementById('fullscreenShowBonds');
+                if (fullscreenShowBonds) {
+                    fullscreenShowBonds.checked = e.target.checked;
+                }
+                
                 this.updateRender(true); // 保持相机位置
             });
         }
@@ -307,6 +537,13 @@ class CrystalToolkitRenderer {
             showUnitCell.checked = this.renderParams.showUnitCell;
             showUnitCell.addEventListener('change', (e) => {
                 this.renderParams.showUnitCell = e.target.checked;
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenShowUnitCell = document.getElementById('fullscreenShowUnitCell');
+                if (fullscreenShowUnitCell) {
+                    fullscreenShowUnitCell.checked = e.target.checked;
+                }
+                
                 this.updateRender(true); // 保持相机位置
             });
         }
@@ -340,42 +577,60 @@ class CrystalToolkitRenderer {
         console.log('🧹 容器已清空并重置样式');
         
         try {
+            // 保存当前结构引用，供其他函数使用
             this.currentStructure = structure;
             
-            // 生成Plotly数据
+            // 🎯 首先计算结构边界框并设置centerOffset，这必须在生成Plotly数据之前完成
+            console.log('📏 计算结构边界框和centerOffset...');
+            const bounds = this.calculateStructureBounds(structure);
+            console.log('🎯 centerOffset已设置:', this.centerOffset);
+            
+            // 生成Plotly数据（现在centerOffset已正确设置）
             console.log('📊 生成Plotly数据...');
             const plotData = this.generatePlotlyData(structure);
             console.log('📈 Plotly数据:', plotData);
             
-            // 计算结构边界框并设置合适的相机位置
-            const bounds = this.calculateStructureBounds(structure);
+            // 计算最佳相机位置
             const optimalCamera = this.calculateOptimalCamera(bounds);
             
-            // Crystal Toolkit风格布局 - 无标题
+            // Crystal Toolkit风格布局 - 优化居中显示，恢复坐标轴显示
             const layout = {
                 scene: {
                     xaxis: { 
                         title: 'X (Å)', 
-                        showgrid: false,
-                        showline: false,
-                        zeroline: false,
-                        showticklabels: false
+                        showgrid: true,
+                        showline: true,
+                        zeroline: true,
+                        showticklabels: true,
+                        gridcolor: '#e0e0e0',
+                        linecolor: '#666666',
+                        zerolinecolor: '#999999'
+                        // 移除固定range，让Plotly自动计算以确保居中
                     },
                     yaxis: { 
                         title: 'Y (Å)', 
-                        showgrid: false,
-                        showline: false,
-                        zeroline: false,
-                        showticklabels: false
+                        showgrid: true,
+                        showline: true,
+                        zeroline: true,
+                        showticklabels: true,
+                        gridcolor: '#e0e0e0',
+                        linecolor: '#666666',
+                        zerolinecolor: '#999999'
+                        // 移除固定range，让Plotly自动计算以确保居中
                     },
                     zaxis: { 
                         title: 'Z (Å)', 
-                        showgrid: false,
-                        showline: false,
-                        zeroline: false,
-                        showticklabels: false
+                        showgrid: true,
+                        showline: true,
+                        zeroline: true,
+                        showticklabels: true,
+                        gridcolor: '#e0e0e0',
+                        linecolor: '#666666',
+                        zerolinecolor: '#999999'
+                        // 移除固定range，让Plotly自动计算以确保居中
                     },
                     aspectmode: 'cube',
+                    aspectratio: { x: 1, y: 1, z: 1 },
                     bgcolor: 'white',
                     camera: optimalCamera,
                     dragmode: 'orbit'
@@ -411,6 +666,39 @@ class CrystalToolkitRenderer {
             Plotly.newPlot(this.container, plotData, layout, config);
             console.log('🎯 Plotly渲染完成');
             
+            // 🔍 验证Plotly渲染后的实际状态
+            setTimeout(() => {
+                const actualLayout = this.container.layout;
+                if (actualLayout && actualLayout.scene && actualLayout.scene.camera) {
+                    console.log('✅ Plotly渲染后的实际相机状态:', {
+                        '实际camera.center': actualLayout.scene.camera.center,
+                        '实际camera.eye': actualLayout.scene.camera.eye,
+                        '实际camera.up': actualLayout.scene.camera.up,
+                        '期望camera.center': optimalCamera.center,
+                        '期望camera.eye': optimalCamera.eye
+                    });
+                    
+                    // 检查center是否被正确设置
+                    const actualCenter = actualLayout.scene.camera.center;
+                    const expectedCenter = optimalCamera.center;
+                    const centerMatch = actualCenter && 
+                        Math.abs(actualCenter.x - expectedCenter.x) < 0.001 &&
+                        Math.abs(actualCenter.y - expectedCenter.y) < 0.001 &&
+                        Math.abs(actualCenter.z - expectedCenter.z) < 0.001;
+                    
+                    console.log('🎯 相机center设置验证:', {
+                        '是否匹配': centerMatch,
+                        '差异': actualCenter ? {
+                            x: Math.abs(actualCenter.x - expectedCenter.x),
+                            y: Math.abs(actualCenter.y - expectedCenter.y),
+                            z: Math.abs(actualCenter.z - expectedCenter.z)
+                        } : '无法获取实际center'
+                    });
+                } else {
+                    console.warn('⚠️ 无法获取Plotly渲染后的相机状态');
+                }
+            }, 100);
+            
             // 添加自定义滚轮事件处理，只影响相机距离，不改变原子大小
             this.container.addEventListener('wheel', (event) => {
                 event.preventDefault();
@@ -436,13 +724,22 @@ class CrystalToolkitRenderer {
                         direction.z * direction.z
                     );
                     
-                    // 计算缩放因子（滚轮向上放大，向下缩小）
-                    const zoomFactor = event.deltaY > 0 ? 1.1 : 0.9;
+                    // 计算缩放因子（滚轮向上放大，向下缩小）- 优化缩放敏感度和步进控制
+                    // 根据当前距离动态调整缩放步进，距离越近步进越小，保持平滑缩放
+                    const baseZoomIn = 0.85;  // 放大时的基础因子
+                    const baseZoomOut = 1.15; // 缩小时的基础因子
+                    
+                    // 动态调整缩放步进：距离越近，步进越小
+                    const distanceRatio = Math.max(0.1, Math.min(1.0, currentDistance / 10));
+                    const zoomIn = baseZoomIn + (1 - baseZoomIn) * (1 - distanceRatio) * 0.3;
+                    const zoomOut = baseZoomOut - (baseZoomOut - 1) * (1 - distanceRatio) * 0.3;
+                    
+                    const zoomFactor = event.deltaY > 0 ? zoomOut : zoomIn;
                     const newDistance = currentDistance * zoomFactor;
                     
-                    // 限制距离范围
-                    const minDistance = 2;
-                    const maxDistance = 50;
+                    // 限制距离范围 - 允许极大的放大倍数
+                    const minDistance = 0.01;  // 进一步减小最小距离，允许更大放大倍数
+                    const maxDistance = 150;   // 增加最大距离范围
                     const clampedDistance = Math.max(minDistance, Math.min(maxDistance, newDistance));
                     
                     // 计算新的相机位置
@@ -533,269 +830,208 @@ class CrystalToolkitRenderer {
             Object.entries(atomsByElement).forEach(([element, atoms]) => {
                 // 安全检查原子数组
                 if (!Array.isArray(atoms) || atoms.length === 0) {
-                    console.warn(`⚠️ 元素 ${element} 的原子数据无效:`, atoms);
+                    console.warn(`⚠️ 元素 ${element} 的原子数组无效:`, atoms);
                     return;
                 }
                 
-                const color = this.getElementColor(element);
-                const radius = this.getElementRadius(element);
+                const x = [], y = [], z = [], text = [];
                 
-                // 过滤有效的原子数据
-                const validAtoms = atoms.filter(atom => {
-                    return atom && atom.cartesian && Array.isArray(atom.cartesian) && atom.cartesian.length >= 3;
+                atoms.forEach((atom, index) => {
+                    // 安全检查原子数据
+                    if (!atom || !Array.isArray(atom.cartesian) || atom.cartesian.length < 3) {
+                        console.warn(`⚠️ 元素 ${element} 第${index}个原子的笛卡尔坐标无效:`, atom);
+                        return;
+                    }
+                    
+                    x.push(atom.cartesian[0]);
+                    y.push(atom.cartesian[1]);
+                    z.push(atom.cartesian[2]);
+                    text.push(`${element} (${atom.cartesian[0].toFixed(2)}, ${atom.cartesian[1].toFixed(2)}, ${atom.cartesian[2].toFixed(2)})`);
                 });
                 
-                if (validAtoms.length === 0) {
-                    console.warn(`⚠️ 元素 ${element} 没有有效的原子数据`);
-                    return;
+                // 只有当有有效坐标时才添加trace
+                if (x.length > 0) {
+                    const atomTrace = {
+                        type: 'scatter3d',
+                        mode: 'markers',
+                        x: x, y: y, z: z,
+                        text: text,
+                        hoverinfo: 'text',
+                        marker: {
+                            size: this.calculateOptimalAtomSize(element, structure),
+                            color: this.getElementColor(element),
+                            opacity: 0.9,
+                            line: {
+                                color: '#000000',
+                                width: 0.5
+                            }
+                        },
+                        name: element,
+                        showlegend: false
+                    };
+                    
+                    traces.push(atomTrace);
+                    console.log(`✅ 添加了 ${atoms.length} 个 ${element} 原子`);
+                } else {
+                    console.warn(`⚠️ 元素 ${element} 没有有效的原子坐标`);
                 }
-                
-                console.log(`🎨 处理元素 ${element}:`, {
-                    count: validAtoms.length,
-                    color: color,
-                    radius: radius,
-                    positions: validAtoms.map(a => a.cartesian)
-                });
-                
-                const trace = {
-                    type: 'scatter3d',
-                    mode: 'markers',
-                    name: element,
-                    x: validAtoms.map(atom => atom.cartesian[0]),
-                    y: validAtoms.map(atom => atom.cartesian[1]),
-                    z: validAtoms.map(atom => atom.cartesian[2]),
-                    marker: {
-                        size: Math.max(5, radius * 20 * this.renderParams.scaleFactor), // 动态调整原子大小
-                        color: color,
-                        opacity: 0.9,
-                        line: {
-                            color: '#333333',
-                            width: 1
-                        }
-                    },
-                    hovertemplate: `<b>${element}</b><br>` +
-                                 'Position: (%{x:.3f}, %{y:.3f}, %{z:.3f})<extra></extra>',
-                    showlegend: false
-                };
-                
-                console.log(`✅ ${element} trace创建:`, trace);
-                traces.push(trace);
             });
         }
         
         // 2. 化学键渲染（如果启用）
         if (this.renderParams.showBonds && this.renderParams.includeBonds) {
+            console.log('🔗 开始处理化学键...');
             const bonds = this.calculateBonds(structure);
+            
             if (bonds.length > 0) {
                 const bondTrace = this.createBondTrace(bonds);
                 traces.push(bondTrace);
+                console.log(`✅ 添加了 ${bonds.length} 个化学键`);
+            } else {
+                console.log('ℹ️ 没有找到化学键');
             }
         }
         
         // 3. 晶胞渲染（如果启用）
         if (this.renderParams.showUnitCell) {
+            console.log('📦 开始处理晶胞...');
             const unitCellTrace = this.createUnitCellTrace(structure.lattice);
             traces.push(unitCellTrace);
+            console.log('✅ 添加了晶胞边框');
         }
         
+        console.log(`🎯 总共生成了 ${traces.length} 个Plotly traces`);
         return traces;
     }
     
-    // 调整大小以匹配容器
-    resizeToContainer(resetCamera = true) {
-        if (!this.container) return;
-        
-        console.log('📐 调整大小以匹配容器...');
-        
-        const containerRect = this.container.getBoundingClientRect();
-        const isFullscreen = !!document.fullscreenElement;
-        
-        // 全屏时使用屏幕尺寸
-        const targetWidth = isFullscreen ? window.innerWidth : containerRect.width;
-        const targetHeight = isFullscreen ? window.innerHeight : containerRect.height;
-        
-        console.log(`📊 尺寸设置: ${targetWidth}x${targetHeight} (全屏: ${isFullscreen})`);
-        
-        const layoutUpdate = {
-            width: targetWidth,
-            height: targetHeight,
-            autosize: !isFullscreen // 非全屏时启用自动调整
-        };
-        
-        // 只在需要时重置相机
-        if (resetCamera) {
-            layoutUpdate['scene.camera'] = {
-                eye: { x: 1.5, y: 1.5, z: 1.5 },
-                center: { x: 0, y: 0, z: 0 }
-            };
+    updateRender(keepCamera = true) {
+        if (!this.currentStructure) {
+            console.warn('⚠️ 没有当前结构，无法更新渲染');
+            return;
         }
         
-        // 一次性调整布局，避免重复调用
-        Plotly.relayout(this.container, layoutUpdate);
-    }
-    
-    // 更新渲染（参数改变时调用）
-    updateRender(preserveCamera = false) {
-        if (!this.currentStructure) return;
+        console.log('🔄 更新渲染，保持相机位置:', keepCamera);
         
-        console.log('🔄 更新渲染参数:', this.renderParams);
-        console.log('🎥 preserveCamera模式:', preserveCamera);
+        // 保存当前相机位置和坐标轴范围（如果需要）
+        let currentCamera = null;
+        let currentAxisRanges = null;
+        if (keepCamera && this.container && this.container.layout && this.container.layout.scene) {
+            // 🎯 深拷贝相机的所有参数，确保完整保存eye、center、up
+            const camera = this.container.layout.scene.camera;
+            if (camera) {
+                currentCamera = {
+                    eye: camera.eye ? { ...camera.eye } : null,
+                    center: camera.center ? { ...camera.center } : null,
+                    up: camera.up ? { ...camera.up } : null
+                };
+                console.log('🎥 保存当前完整相机状态:', currentCamera);
+            }
+            
+            // 🎯 保存当前坐标轴范围，防止切换显示选项时尺度变化
+            const scene = this.container.layout.scene;
+            if (scene.xaxis && scene.yaxis && scene.zaxis) {
+                currentAxisRanges = {
+                    xaxis: {
+                        range: scene.xaxis.range ? [...scene.xaxis.range] : null
+                    },
+                    yaxis: {
+                        range: scene.yaxis.range ? [...scene.yaxis.range] : null
+                    },
+                    zaxis: {
+                        range: scene.zaxis.range ? [...scene.zaxis.range] : null
+                    }
+                };
+                console.log('📏 保存当前坐标轴范围:', currentAxisRanges);
+            }
+        }
         
         // 重新生成数据
         const plotData = this.generatePlotlyData(this.currentStructure);
         
-        // 获取当前相机位置（如果需要保持）
-        let currentCamera = null;
-        if (preserveCamera) {
-            // 尝试多种方法获取当前相机状态
-            try {
-                // 方法1: 从_fullLayout获取
-                if (this.container._fullLayout && this.container._fullLayout.scene && this.container._fullLayout.scene.camera) {
-                    const camera = this.container._fullLayout.scene.camera;
-                    if (camera.center && camera.eye && camera.up) {
-                        currentCamera = {
-                            center: {...camera.center},
-                            eye: {...camera.eye},
-                            up: {...camera.up}
-                        };
-                        console.log('🎥 从_fullLayout成功获取相机位置:', currentCamera);
+        // 更新图表数据
+        Plotly.react(this.container, plotData, this.container.layout, this.container.config);
+        
+        // 恢复相机位置和坐标轴范围（如果需要）
+        if (keepCamera) {
+            setTimeout(() => {
+                const relayoutData = {};
+                
+                // 恢复相机位置
+                if (currentCamera) {
+                    relayoutData['scene.camera'] = currentCamera;
+                }
+                
+                // 🎯 恢复坐标轴范围，确保尺度不变
+                if (currentAxisRanges) {
+                    if (currentAxisRanges.xaxis.range) {
+                        relayoutData['scene.xaxis.range'] = currentAxisRanges.xaxis.range;
                     }
-                }
-                
-                // 方法2: 从layout获取
-                if (!currentCamera && this.container.layout && this.container.layout.scene && this.container.layout.scene.camera) {
-                    const camera = this.container.layout.scene.camera;
-                    if (camera.center && camera.eye && camera.up) {
-                        currentCamera = {
-                            center: {...camera.center},
-                            eye: {...camera.eye},
-                            up: {...camera.up}
-                        };
-                        console.log('🎥 从layout成功获取相机位置:', currentCamera);
+                    if (currentAxisRanges.yaxis.range) {
+                        relayoutData['scene.yaxis.range'] = currentAxisRanges.yaxis.range;
                     }
-                }
-                
-                // 方法3: 使用Plotly的relayout获取当前状态
-                if (!currentCamera) {
-                    try {
-                        const plotDiv = this.container;
-                        if (plotDiv && plotDiv.data && plotDiv.layout) {
-                            // 尝试从当前显示的图表获取相机信息
-                            const currentLayout = plotDiv.layout;
-                            if (currentLayout.scene && currentLayout.scene.camera) {
-                                const camera = currentLayout.scene.camera;
-                                if (camera.center && camera.eye && camera.up) {
-                                    currentCamera = {
-                                        center: {...camera.center},
-                                        eye: {...camera.eye},
-                                        up: {...camera.up}
-                                    };
-                                    console.log('🎥 从当前布局成功获取相机位置:', currentCamera);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('🎥 从当前布局获取相机失败:', e);
+                    if (currentAxisRanges.zaxis.range) {
+                        relayoutData['scene.zaxis.range'] = currentAxisRanges.zaxis.range;
                     }
+                    console.log('📏 恢复坐标轴范围:', relayoutData);
                 }
                 
-                // 如果所有方法都失败，不设置相机（保持当前状态）
-                if (!currentCamera) {
-                    console.warn('🎥 无法获取当前相机位置，将跳过相机设置以保持当前视角');
-                    // 不使用optimalCamera，这样可以避免重置视角
+                if (Object.keys(relayoutData).length > 0) {
+                    Plotly.relayout(this.container, relayoutData);
                 }
-                
-            } catch (e) {
-                console.error('🎥 获取相机位置时发生错误:', e);
-                currentCamera = null; // 确保不会意外重置
-            }
+            }, 50);
         }
         
-        // 获取容器尺寸
-        const containerRect = this.container.getBoundingClientRect();
-        
-        const layoutUpdate = {
-            width: containerRect.width,
-            height: containerRect.height,
-            margin: { l: 0, r: 0, b: 0, t: 0, pad: 0 },
-            paper_bgcolor: 'white',
-            plot_bgcolor: 'white',
-            scene: {
-                xaxis: { 
-                    title: 'X (Å)', 
-                    showgrid: false,
-                    showline: false,
-                    zeroline: false,
-                    showticklabels: false
-                },
-                yaxis: { 
-                    title: 'Y (Å)', 
-                    showgrid: false,
-                    showline: false,
-                    zeroline: false,
-                    showticklabels: false
-                },
-                zaxis: { 
-                    title: 'Z (Å)', 
-                    showgrid: false,
-                    showline: false,
-                    zeroline: false,
-                    showticklabels: false
-                },
-                aspectmode: 'cube',
-                bgcolor: 'white',
-                dragmode: 'orbit'
-            },
-            showlegend: false
-        };
-        
-        // 如果需要保持相机位置且有相机信息，添加到布局中
-        if (preserveCamera && currentCamera) {
-            layoutUpdate.scene.camera = currentCamera;
-            console.log('🎥 保持相机位置模式，设置相机:', currentCamera);
-        } else if (preserveCamera && !currentCamera) {
-            console.log('🎥 保持相机模式但无法获取相机位置，将不设置相机以保持当前视角');
-        }
-        
-        // 如果需要保持相机且无法获取相机信息，使用更温和的更新方式
-        if (preserveCamera && !currentCamera) {
-            console.log('🎥 保持相机模式但无法获取相机位置，使用restyle更新数据');
-            // 只更新数据，不更新布局，这样可以保持当前相机位置
-            Plotly.restyle(this.container, plotData).then(() => {
-                console.log('🎥 数据更新完成，相机位置保持不变');
-            }).catch(e => {
-                console.error('🎥 Plotly.restyle失败:', e);
-            });
-        } else {
-            // 使用react更新图表
-            Plotly.react(this.container, plotData, layoutUpdate).then(() => {
-                // 只有在成功获取到相机信息时才进行后续设置
-                if (preserveCamera && currentCamera) {
-                    console.log('🎥 React完成后再次确认相机位置');
-                    setTimeout(() => {
-                        Plotly.relayout(this.container, {
-                            'scene.camera': currentCamera
-                        }).then(() => {
-                            console.log('🎥 最终相机位置设置成功');
-                        }).catch(e => {
-                            console.error('🎥 最终相机位置设置失败:', e);
-                        });
-                    }, 50);
-                }
-            }).catch(e => {
-                console.error('🎥 Plotly.react失败:', e);
-            });
-        }
-
+        console.log('✅ 渲染更新完成');
     }
     
-    // 辅助方法
+    resizeToContainer(resetCamera = true) {
+        if (!this.container) return;
+        
+        console.log('📐 调整图表大小以适应容器，重置相机:', resetCamera);
+        
+        // 获取容器当前尺寸
+        const containerRect = this.container.getBoundingClientRect();
+        console.log('📦 容器当前尺寸:', containerRect);
+        
+        // 保存当前相机位置（如果不重置相机）
+        let currentCamera = null;
+        if (!resetCamera && this.container.layout && this.container.layout.scene) {
+            currentCamera = this.container.layout.scene.camera;
+        }
+        
+        // 调整图表尺寸
+        const updateData = {
+            width: containerRect.width,
+            height: containerRect.height
+        };
+        
+        // 如果需要重置相机，重新计算最佳相机位置
+        if (resetCamera && this.currentStructure) {
+            const bounds = this.calculateStructureBounds(this.currentStructure);
+            const optimalCamera = this.calculateOptimalCamera(bounds);
+            updateData['scene.camera'] = optimalCamera;
+            this.optimalCamera = optimalCamera;
+        }
+        
+        Plotly.relayout(this.container, updateData);
+        
+        // 恢复相机位置（如果不重置相机）
+        if (!resetCamera && currentCamera) {
+            setTimeout(() => {
+                Plotly.relayout(this.container, {
+                    'scene.camera': currentCamera
+                });
+            }, 50);
+        }
+        
+        console.log('✅ 图表大小调整完成');
+    }
+    
     groupAtomsByElement(structure) {
         const atomsByElement = {};
         
-        // 安全检查结构数据
-        if (!structure || !structure.sites || !Array.isArray(structure.sites)) {
-            console.error('❌ 结构数据无效:', structure);
+        if (!structure.sites || !Array.isArray(structure.sites)) {
+            console.error('❌ 结构中没有有效的原子位点数据');
             return atomsByElement;
         }
         
@@ -948,23 +1184,47 @@ class CrystalToolkitRenderer {
     }
     
     getUnitCellEdges(matrix) {
-        const origin = [0, 0, 0];
+        let origin = [0, 0, 0];
         const a = matrix[0], b = matrix[1], c = matrix[2];
         
+        // 🎯 应用中心偏移到单元格原点
+        if (this.centerOffset) {
+            origin = [
+                -this.centerOffset.x,
+                -this.centerOffset.y,
+                -this.centerOffset.z
+            ];
+        }
+        
+        // 计算所有顶点，应用中心偏移
+        const applyOffset = (point) => {
+            if (this.centerOffset) {
+                return [
+                    point[0] - this.centerOffset.x,
+                    point[1] - this.centerOffset.y,
+                    point[2] - this.centerOffset.z
+                ];
+            }
+            return point;
+        };
+        
+        const vertices = {
+            origin: applyOffset([0, 0, 0]),
+            a: applyOffset(a),
+            b: applyOffset(b),
+            c: applyOffset(c),
+            ab: applyOffset([a[0] + b[0], a[1] + b[1], a[2] + b[2]]),
+            ac: applyOffset([a[0] + c[0], a[1] + c[1], a[2] + c[2]]),
+            bc: applyOffset([b[0] + c[0], b[1] + c[1], b[2] + c[2]]),
+            abc: applyOffset([a[0] + b[0] + c[0], a[1] + b[1] + c[1], a[2] + b[2] + c[2]])
+        };
+        
         return [
-            [origin, a], [origin, b], [origin, c],
-            [a, [a[0] + b[0], a[1] + b[1], a[2] + b[2]]],
-            [a, [a[0] + c[0], a[1] + c[1], a[2] + c[2]]],
-            [b, [b[0] + a[0], b[1] + a[1], b[2] + a[2]]],
-            [b, [b[0] + c[0], b[1] + c[1], b[2] + c[2]]],
-            [c, [c[0] + a[0], c[1] + a[1], c[2] + a[2]]],
-            [c, [c[0] + b[0], c[1] + b[1], c[2] + b[2]]],
-            [[a[0] + b[0], a[1] + b[1], a[2] + b[2]], 
-             [a[0] + b[0] + c[0], a[1] + b[1] + c[1], a[2] + b[2] + c[2]]],
-            [[a[0] + c[0], a[1] + c[1], a[2] + c[2]], 
-             [a[0] + b[0] + c[0], a[1] + b[1] + c[1], a[2] + b[2] + c[2]]],
-            [[b[0] + c[0], b[1] + c[1], b[2] + c[2]], 
-             [a[0] + b[0] + c[0], a[1] + b[1] + c[1], a[2] + b[2] + c[2]]]
+            [vertices.origin, vertices.a], [vertices.origin, vertices.b], [vertices.origin, vertices.c],
+            [vertices.a, vertices.ab], [vertices.a, vertices.ac],
+            [vertices.b, vertices.ab], [vertices.b, vertices.bc],
+            [vertices.c, vertices.ac], [vertices.c, vertices.bc],
+            [vertices.ab, vertices.abc], [vertices.ac, vertices.abc], [vertices.bc, vertices.abc]
         ];
     }
     
@@ -996,14 +1256,19 @@ class CrystalToolkitRenderer {
         }
         
         // 分数坐标转换计算
-        
         const cartesian = [
             fracCoords[0] * matrix[0][0] + fracCoords[1] * matrix[1][0] + fracCoords[2] * matrix[2][0],
             fracCoords[0] * matrix[0][1] + fracCoords[1] * matrix[1][1] + fracCoords[2] * matrix[2][1],
             fracCoords[0] * matrix[0][2] + fracCoords[1] * matrix[1][2] + fracCoords[2] * matrix[2][2]
         ];
         
-        console.log('📍 笛卡尔坐标:', cartesian);
+        // 🎯 应用中心偏移，将结构居中到原点
+        if (this.centerOffset) {
+            cartesian[0] -= this.centerOffset.x;
+            cartesian[1] -= this.centerOffset.y;
+            cartesian[2] -= this.centerOffset.z;
+        }
+        
         return cartesian;
     }
     
@@ -1122,13 +1387,111 @@ class CrystalToolkitRenderer {
     }
     
     getElementRadius(element) {
+        // 使用更合理的原子半径，基于离子半径和共价半径的平衡
         const radii = {
-            'H': 1.20, 'Li': 1.82, 'Be': 1.53, 'B': 1.92, 'C': 1.70,
-            'N': 1.55, 'O': 1.52, 'F': 1.47, 'Na': 2.27, 'Mg': 1.73,
-            'Al': 1.84, 'Si': 2.10, 'P': 1.80, 'S': 1.80, 'Cl': 1.75,
-            'K': 2.75, 'Ca': 2.31, 'Fe': 2.00, 'Cu': 1.40, 'Zn': 1.39
+            'H': 0.8, 'Li': 1.2, 'Be': 0.9, 'B': 1.0, 'C': 1.0,
+            'N': 0.9, 'O': 0.8, 'F': 0.7, 'Na': 1.4, 'Mg': 1.1,
+            'Al': 1.2, 'Si': 1.3, 'P': 1.2, 'S': 1.2, 'Cl': 1.1,
+            'K': 1.8, 'Ca': 1.5, 'Fe': 1.3, 'Cu': 1.1, 'Zn': 1.1,
+            'Co': 1.2, 'Ni': 1.1, 'Mn': 1.3, 'Cr': 1.2, 'Ti': 1.4,
+            'V': 1.3, 'Sc': 1.4, 'Y': 1.6, 'Zr': 1.5, 'Nb': 1.4
         };
-        return radii[element] || 1.50;
+        return radii[element] || 1.0;
+    }
+    
+    // 智能计算原子显示大小，确保不重叠且显示效果良好
+    calculateOptimalAtomSize(element, structure) {
+        const baseRadius = this.getElementRadius(element);
+        const scaleFactor = this.renderParams.scaleFactor;
+        
+        // 计算结构的最小原子间距离
+        const minDistance = this.calculateMinimumAtomDistance(structure);
+        
+        // 基础大小计算：使用更大的基础倍数提高可见性
+        let baseSize = baseRadius * scaleFactor * 15; // 从8增加到15
+        
+        // 根据最小距离调整大小，确保不重叠
+        if (minDistance > 0) {
+            // 计算安全的最大球体大小（球体直径不应超过最小距离的80%）
+            const maxSafeSize = (minDistance * 0.8) * 10; // 转换为Plotly单位
+            
+            // 如果基础大小会导致重叠，则限制大小
+            if (baseSize > maxSafeSize) {
+                baseSize = maxSafeSize;
+            }
+        }
+        
+        // 根据结构特征进一步调整
+        const characteristics = this.analyzeStructureCharacteristics(structure);
+        
+        // 根据原子数量调整：原子越多，单个原子应该相对更小
+        if (characteristics.atomCount > 100) {
+            baseSize *= 0.7;
+        } else if (characteristics.atomCount > 50) {
+            baseSize *= 0.85;
+        } else if (characteristics.atomCount < 10) {
+            baseSize *= 1.3; // 少量原子时可以显示更大
+        }
+        
+        // 根据结构密度调整
+        if (characteristics.density > 0.1) {
+            baseSize *= 0.8; // 高密度结构使用更小的球体
+        } else if (characteristics.density < 0.01) {
+            baseSize *= 1.2; // 低密度结构可以使用更大的球体
+        }
+        
+        // 确保最小可见大小
+        const minSize = 8;
+        const maxSize = 50;
+        
+        const finalSize = Math.max(minSize, Math.min(maxSize, baseSize));
+        
+        console.log(`🎯 ${element} 原子大小计算:`, {
+            基础半径: baseRadius,
+            缩放因子: scaleFactor,
+            最小距离: minDistance?.toFixed(2),
+            基础大小: (baseRadius * scaleFactor * 15).toFixed(1),
+            最终大小: finalSize.toFixed(1),
+            原子数量: characteristics.atomCount,
+            密度: characteristics.density.toFixed(4)
+        });
+        
+        return finalSize;
+    }
+    
+    // 计算结构中原子间的最小距离
+    calculateMinimumAtomDistance(structure) {
+        if (!structure.sites || structure.sites.length < 2) {
+            return null;
+        }
+        
+        let minDistance = Infinity;
+        const sites = structure.sites;
+        
+        // 计算所有原子对之间的距离
+        for (let i = 0; i < sites.length; i++) {
+            for (let j = i + 1; j < sites.length; j++) {
+                const site1 = sites[i];
+                const site2 = sites[j];
+                
+                if (!site1.coords || !site2.coords) continue;
+                
+                const cart1 = this.fractionalToCartesian(site1.coords, structure.lattice);
+                const cart2 = this.fractionalToCartesian(site2.coords, structure.lattice);
+                
+                const distance = Math.sqrt(
+                    Math.pow(cart1[0] - cart2[0], 2) +
+                    Math.pow(cart1[1] - cart2[1], 2) +
+                    Math.pow(cart1[2] - cart2[2], 2)
+                );
+                
+                if (distance > 0.1 && distance < minDistance) { // 忽略过小的距离（可能是同一原子）
+                    minDistance = distance;
+                }
+            }
+        }
+        
+        return minDistance === Infinity ? null : minDistance;
     }
 
     // 计算结构的边界框
@@ -1144,23 +1507,46 @@ class CrystalToolkitRenderer {
 
         let minX = Infinity, minY = Infinity, minZ = Infinity;
         let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        let allCartesian = [];
 
-        // 遍历所有原子位置
-         structure.sites.forEach(site => {
-             const cartesian = this.fractionalToCartesian(site.abc, structure.lattice);
-             minX = Math.min(minX, cartesian[0]);
-             minY = Math.min(minY, cartesian[1]);
-             minZ = Math.min(minZ, cartesian[2]);
-             maxX = Math.max(maxX, cartesian[0]);
-             maxY = Math.max(maxY, cartesian[1]);
-             maxZ = Math.max(maxZ, cartesian[2]);
-         });
+        // 🔧 直接计算原始笛卡尔坐标，不应用centerOffset
+        structure.sites.forEach(site => {
+            // 直接进行分数坐标到笛卡尔坐标的转换，不使用centerOffset
+            const matrix = structure.lattice.matrix || structure.lattice;
+            const cartesian = [
+                site.coords[0] * matrix[0][0] + site.coords[1] * matrix[1][0] + site.coords[2] * matrix[2][0],
+                site.coords[0] * matrix[0][1] + site.coords[1] * matrix[1][1] + site.coords[2] * matrix[2][1],
+                site.coords[0] * matrix[0][2] + site.coords[1] * matrix[1][2] + site.coords[2] * matrix[2][2]
+            ];
+            
+            allCartesian.push(cartesian);
+            minX = Math.min(minX, cartesian[0]);
+            minY = Math.min(minY, cartesian[1]);
+            minZ = Math.min(minZ, cartesian[2]);
+            maxX = Math.max(maxX, cartesian[0]);
+            maxY = Math.max(maxY, cartesian[1]);
+            maxZ = Math.max(maxZ, cartesian[2]);
+        });
 
-        const center = {
+        // 计算几何中心（所有原子坐标的平均值）
+        const geometricCenter = {
+            x: allCartesian.reduce((sum, coord) => sum + coord[0], 0) / allCartesian.length,
+            y: allCartesian.reduce((sum, coord) => sum + coord[1], 0) / allCartesian.length,
+            z: allCartesian.reduce((sum, coord) => sum + coord[2], 0) / allCartesian.length
+        };
+
+        // 计算边界框中心
+        const boundingCenter = {
             x: (minX + maxX) / 2,
             y: (minY + maxY) / 2,
             z: (minZ + maxZ) / 2
         };
+
+        // 使用几何中心作为结构中心，这样更准确
+        const center = geometricCenter;
+        
+        // 🎯 设置centerOffset，用于后续的坐标转换
+        this.centerOffset = center;
 
         const size = {
             x: maxX - minX,
@@ -1168,7 +1554,14 @@ class CrystalToolkitRenderer {
             z: maxZ - minZ
         };
 
-        console.log('📏 结构边界框:', { min: {x: minX, y: minY, z: minZ}, max: {x: maxX, y: maxY, z: maxZ}, center, size });
+        console.log('📏 结构边界框:', { 
+            min: {x: minX, y: minY, z: minZ}, 
+            max: {x: maxX, y: maxY, z: maxZ}, 
+            boundingCenter, 
+            geometricCenter,
+            finalCenter: center,
+            size 
+        });
 
         return {
             min: { x: minX, y: minY, z: minZ },
@@ -1178,61 +1571,209 @@ class CrystalToolkitRenderer {
         };
     }
 
-    // 根据结构边界框计算最佳相机位置
+    // 分析结构特征，用于智能相机距离计算
+    analyzeStructureCharacteristics(structure) {
+        if (!structure.sites || structure.sites.length === 0) {
+            return {
+                atomCount: 0,
+                density: 0,
+                structureType: 'unknown',
+                complexity: 'low'
+            };
+        }
+
+        const atomCount = structure.sites.length;
+        const { size } = this.calculateStructureBounds(structure);
+        const volume = size.x * size.y * size.z;
+        const density = atomCount / Math.max(volume, 1); // 原子密度
+
+        // 分析元素组成
+        const elements = new Set();
+        structure.sites.forEach(site => {
+            if (site.species && Array.isArray(site.species)) {
+                site.species.forEach(spec => {
+                    if (spec.element) {
+                        elements.add(spec.element);
+                    }
+                });
+            }
+        });
+
+        // 判断结构类型
+        let structureType = 'unknown';
+        const elementArray = Array.from(elements);
+        
+        if (elementArray.includes('Na') && elementArray.includes('Cl')) {
+            structureType = 'ionic_simple'; // NaCl类型
+        } else if (elementArray.includes('Li') && (elementArray.includes('Co') || elementArray.includes('Ni') || elementArray.includes('Mn'))) {
+            structureType = 'layered_oxide'; // LiCoO2类型
+        } else if (elementArray.length === 1) {
+            structureType = 'elemental'; // 单质
+        } else if (elementArray.length === 2) {
+            structureType = 'binary'; // 二元化合物
+        } else if (elementArray.length >= 3) {
+            structureType = 'complex'; // 复杂化合物
+        }
+
+        // 判断复杂度
+        let complexity = 'low';
+        if (atomCount > 50) {
+            complexity = 'high';
+        } else if (atomCount > 20 || elementArray.length > 3) {
+            complexity = 'medium';
+        }
+
+        console.log('🔬 结构特征分析:', {
+            atomCount,
+            density: density.toFixed(4),
+            structureType,
+            complexity,
+            elements: elementArray,
+            volume: volume.toFixed(2)
+        });
+
+        return {
+            atomCount,
+            density,
+            structureType,
+            complexity,
+            elements: elementArray,
+            volume
+        };
+    }
+
+    // 根据结构边界框和特征计算最佳相机位置
     calculateOptimalCamera(bounds) {
         const { center, size } = bounds;
         
-        // 计算结构的最大尺寸
+        // 分析结构特征
+        const characteristics = this.analyzeStructureCharacteristics(this.currentStructure);
+        
+        // 计算结构的最大尺寸和有效尺寸
         const maxSize = Math.max(size.x, size.y, size.z);
+        const avgSize = (size.x + size.y + size.z) / 3;
+        const minSize = Math.min(size.x, size.y, size.z);
         
         // 获取canvas的实际尺寸
         const canvasWidth = this.container ? this.container.offsetWidth : 800;
         const canvasHeight = this.container ? this.container.offsetHeight : 600;
-        const canvasSize = Math.min(canvasWidth, canvasHeight);
+        const canvasAspectRatio = canvasWidth / canvasHeight;
         
-        // 根据canvas大小动态调整距离系数
-        // canvas越大，可以让结构显示得越大（距离系数越小）
-        let distanceCoeff = 0.5; // 基础系数
-        if (canvasSize > 600) {
-            distanceCoeff = 0.3; // 大canvas使用更小的系数
-        } else if (canvasSize < 400) {
-            distanceCoeff = 0.7; // 小canvas使用稍大的系数避免过度放大
+        // 基础距离系数，根据结构类型智能调整 - 大幅减小以显著提高显示尺寸
+        let distanceCoeff = 0.6; // 从1.0进一步减小到0.6
+        
+        // 根据结构类型调整
+        switch (characteristics.structureType) {
+            case 'ionic_simple': // NaCl等简单离子化合物
+                distanceCoeff = 0.4; // 从0.8减小到0.4
+                break;
+            case 'layered_oxide': // LiCoO2等层状氧化物
+                distanceCoeff = 0.5; // 从0.9减小到0.5
+                break;
+            case 'elemental': // 单质
+                distanceCoeff = 0.3; // 从0.7减小到0.3
+                break;
+            case 'binary': // 二元化合物
+                distanceCoeff = 0.4; // 从0.8减小到0.4
+                break;
+            case 'complex': // 复杂化合物
+                distanceCoeff = 0.7; // 从1.1减小到0.7
+                break;
+            default:
+                distanceCoeff = 0.6;
         }
         
-        const distance = Math.max(maxSize * distanceCoeff, 2);
-        
-        // 根据canvas尺寸动态调整相机距离倍数
-        let cameraDistanceMultiplier = 1.0;
-        if (canvasSize > 600) {
-            cameraDistanceMultiplier = 0.8; // 大canvas让结构更大
-        } else if (canvasSize < 400) {
-            cameraDistanceMultiplier = 1.3; // 小canvas保持适当距离
+        // 根据原子数量调整 - 大幅优化小结构的显示
+        if (characteristics.atomCount > 100) {
+            distanceCoeff *= 1.0; // 从1.2减小到1.0
+        } else if (characteristics.atomCount > 50) {
+            distanceCoeff *= 0.9; // 从1.1减小到0.9
+        } else if (characteristics.atomCount < 20) {
+            distanceCoeff *= 0.3; // 从0.6减小到0.3，大幅优化小结构
+        } else if (characteristics.atomCount < 10) {
+            distanceCoeff *= 0.2; // 从0.5减小到0.2，极小结构显示得非常大
         }
         
-        const cameraDistance = distance * cameraDistanceMultiplier;
+        // 根据密度调整
+        if (characteristics.density > 0.1) {
+            distanceCoeff *= 1.1; // 高密度结构稍远
+        } else if (characteristics.density < 0.01) {
+            distanceCoeff *= 0.9; // 低密度结构可以更近
+        }
         
+        // 根据结构形状调整（长宽比）
+        const aspectRatio = maxSize / minSize;
+        if (aspectRatio > 3) {
+            distanceCoeff *= 1.2; // 细长结构需要更远
+        } else if (aspectRatio < 1.5) {
+            distanceCoeff *= 0.95; // 接近球形的结构可以更近
+        }
+        
+        // 根据canvas大小调整
+        if (Math.min(canvasWidth, canvasHeight) > 600) {
+            distanceCoeff *= 0.9; // 大canvas可以更近
+        } else if (Math.min(canvasWidth, canvasHeight) < 400) {
+            distanceCoeff *= 1.2; // 小canvas需要稍远一些
+        }
+        
+        // 根据canvas宽高比调整
+        if (canvasAspectRatio > 1.5) {
+            distanceCoeff *= 1.05; // 宽屏需要稍远一些
+        } else if (canvasAspectRatio < 0.8) {
+            distanceCoeff *= 1.1; // 竖屏需要稍远一些
+        }
+        
+        // 使用平均尺寸而不是最大尺寸，获得更好的视觉效果
+        const effectiveSize = (maxSize * 0.6 + avgSize * 0.4);
+        const cameraDistance = Math.max(effectiveSize * distanceCoeff, 2);
+        
+        // 使用等距离的相机位置，确保完美居中
+        const normalizedDistance = cameraDistance / Math.sqrt(3);
+        
+        // 🎯 强制设置相机center为原点，确保与画布中心对齐
         const camera = {
             eye: {
-                x: center.x + cameraDistance,
-                y: center.y + cameraDistance,
-                z: center.z + cameraDistance
+                x: normalizedDistance,
+                y: normalizedDistance,
+                z: normalizedDistance
             },
             center: {
-                x: center.x,
-                y: center.y,
-                z: center.z
+                x: 0,
+                y: 0,
+                z: 0
             },
-            up: { x: 0, y: 0, z: 1 } // 确保Z轴向上
+            up: { x: 0, y: 0, z: 1 }
         };
         
-        console.log('📷 动态相机设置:', {
-            camera,
-            结构尺寸: maxSize,
-            canvas尺寸: `${canvasWidth}x${canvasHeight}`,
-            距离系数: distanceCoeff,
-            距离倍数: cameraDistanceMultiplier,
-            最终距离: cameraDistance
+        console.log('🔧 相机center强制设置为原点以确保居中:', {
+            '原始几何中心': center,
+            '强制center': camera.center,
+            '调整后eye位置': camera.eye
         });
+        
+        console.log('📷 智能自适应相机设置:', {
+            camera,
+            结构类型: characteristics.structureType,
+            原子数量: characteristics.atomCount,
+            密度: characteristics.density.toFixed(4),
+            复杂度: characteristics.complexity,
+            结构尺寸: { max: maxSize.toFixed(2), avg: avgSize.toFixed(2), min: minSize.toFixed(2) },
+            有效尺寸: effectiveSize.toFixed(2),
+            canvas尺寸: `${canvasWidth}x${canvasHeight}`,
+            距离系数: distanceCoeff.toFixed(2),
+            最终距离: cameraDistance.toFixed(2)
+        });
+        
+        // 🔍 详细的居中调试信息
+        console.log('🎯 居中调试信息:', {
+            '结构几何中心': center,
+            '相机center设置': camera.center,
+            '相机eye位置': camera.eye,
+            '画布中心应该是': { x: canvasWidth/2, y: canvasHeight/2 },
+            '画布尺寸': { width: canvasWidth, height: canvasHeight },
+            '结构是否应该居中': '几何中心应与画布中心重合'
+        });
+        
         return camera;
     }
 }

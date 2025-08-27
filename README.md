@@ -4,16 +4,18 @@
 
 将CIF（Crystallographic Information File）文件转换为USDZ格式，支持3D预览和iOS AR展示。
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)
+![GitHub stars](https://img.shields.io/github/stars/yourusername/crystal3d-converter?style=social)
+![GitHub forks](https://img.shields.io/github/forks/yourusername/crystal3d-converter?style=social)
 
 ## 🚀 快速开始（30秒启动）
 
 ### Windows用户（推荐）
 ```bash
 # 1. 下载项目
-git clone <your-repo-url>
+git clone https://github.com/yourusername/crystal3d-converter.git
 cd crystal3d-converter
 
 # 2. 双击运行
@@ -25,7 +27,7 @@ cd crystal3d-converter
 ### macOS/Linux用户
 ```bash
 # 1. 下载项目
-git clone <your-repo-url>
+git clone https://github.com/yourusername/crystal3d-converter.git
 cd crystal3d-converter
 
 # 2. 一键安装和启动
@@ -81,7 +83,7 @@ python main.py
 
 ```bash
 # 1. 克隆项目
-git clone <your-repo-url>
+git clone https://github.com/yourusername/crystal3d-converter.git
 cd crystal3d-converter
 
 # 2. 选择依赖安装方式（三选一）
@@ -513,7 +515,7 @@ tail -f logs/converter.log
 
 ## 📄 许可证
 
-本项目采用MIT许可证 - 查看[LICENSE](LICENSE)文件了解详情。
+本项目采用Apache 2.0许可证 - 查看[LICENSE](LICENSE)文件了解详情。
 
 ## 🙏 致谢
 
@@ -525,9 +527,9 @@ tail -f logs/converter.log
 
 ## 📞 支持
 
-- 📧 Email: dev@example.com
-- 💬 Issues: [GitHub Issues](https://github.com/yourorg/crystal3d-converter/issues)
-- 📖 文档: [Wiki](https://github.com/yourorg/crystal3d-converter/wiki)
+- 💬 Issues: [GitHub Issues](https://github.com/yourusername/crystal3d-converter/issues)
+- 📖 文档: [项目Wiki](https://github.com/yourusername/crystal3d-converter/wiki)
+- ⭐ 如果觉得有用，请给个Star支持！
 
 ---
 

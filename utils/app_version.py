@@ -15,8 +15,8 @@ from loguru import logger
 # 软件基本信息
 APP_NAME = "Crystal3D - 晶体结构3D转换工具"
 APP_VERSION = "2.1.0"
-APP_BUILD = "20241225"  # 真实构建时间：2024年12月25日
-APP_BUILD_TIME = "2024-12-25 14:30:00"  # 详细构建时间
+APP_BUILD = "20250115"  # 真实构建时间：2025年1月15日
+APP_BUILD_TIME = "2025-01-15 10:30:00"  # 详细构建时间
 APP_DESCRIPTION = "Crystal3D - 专业的晶体结构3D转换工具"
 APP_AUTHOR = "Crystal3D开发团队"
 APP_COPYRIGHT = f"© 2024 {APP_AUTHOR}"
@@ -59,7 +59,7 @@ def get_version_info() -> Dict[str, Any]:
         "version": APP_VERSION,
         "build": APP_BUILD,
         "build_time": APP_BUILD_TIME,
-        "release_date": "2024-12-25",
+        "release_date": "2025-01-15",
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "fastapi_version": get_package_version("fastapi"),
         "ase_version": get_package_version("ase"),
