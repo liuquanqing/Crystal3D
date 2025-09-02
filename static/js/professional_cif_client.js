@@ -36,14 +36,24 @@ class ProfessionalCIFClient {
                     formula: result.metadata.formula,
                     atoms: result.metadata.num_atoms,
                     parser: result.metadata.parser,
-                    source: result.metadata.source
+                    source: result.metadata.source,
+                    polyhedra: result.polyhedra ? result.polyhedra.length : 0
                 });
                 
-                return {
+                const response = {
                     success: true,
                     structure: result.structure,
                     metadata: result.metadata
                 };
+                
+                // 添加多面体数据（如果存在）
+                if (result.polyhedra && result.polyhedra.length > 0) {
+                    console.log(`🔷 发现 ${result.polyhedra.length} 个多面体`);
+                    response.polyhedra = result.polyhedra;
+                    response.coordination_data = result.coordination_data;
+                }
+                
+                return response;
             } else {
                 throw new Error('API解析失败');
             }
@@ -147,4 +157,4 @@ class ProfessionalCIFClient {
 }
 
 // 全局导出
-window.ProfessionalCIFClient = ProfessionalCIFClient; 
+window.ProfessionalCIFClient = ProfessionalCIFClient;

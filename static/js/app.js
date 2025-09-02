@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     initProfessionalClient();
     initPlotlyPreview();
+    initPolyhedraControls();
     
     // 修复滚动问题
     fixScrollIssues();
@@ -105,6 +106,9 @@ function setupEventListeners() {
             }
         });
     }
+    
+    // 绑定多面体控制事件
+    setupPolyhedraControls();
     
     // 文件上传
     if (uploadArea) {
@@ -443,6 +447,13 @@ async function updatePreview() {
         
         if (parseResult.success) {
             console.log('✅ pymatgen解析成功:', parseResult.metadata);
+            
+            // 检查是否包含多面体数据
+            if (parseResult.polyhedra && parseResult.polyhedra.length > 0) {
+                console.log(`🔷 发现 ${parseResult.polyhedra.length} 个多面体`);
+                // 将多面体数据添加到结构中
+                parseResult.structure.polyhedra = parseResult.polyhedra;
+            }
             
             // 2. 使用Crystal Toolkit渲染
             const renderResult = crystalPreview.loadStructure(parseResult.structure);
@@ -2052,5 +2063,76 @@ async function upgradeAllComponents() {
         // 恢复按钮状态
         upgradeBtn.disabled = false;
         upgradeBtn.innerHTML = '<i class="bi bi-rocket me-1"></i>一键更新';
+    }
+}
+
+// 设置多面体控制事件监听器
+function setupPolyhedraControls() {
+    console.log('🔧 设置多面体控制事件监听器...');
+    
+    // 多面体显示复选框
+    const showPolyhedra = document.getElementById('showPolyhedra');
+    if (showPolyhedra) {
+        showPolyhedra.addEventListener('change', function(e) {
+            const isChecked = e.target.checked;
+            console.log('🔷 多面体显示状态:', isChecked);
+            
+            // 显示/隐藏透明度控制
+            const opacityControl = document.getElementById('polyhedronOpacityControl');
+            if (opacityControl) {
+                opacityControl.style.display = isChecked ? 'block' : 'none';
+            }
+            
+            // 如果有CrystalPreview实例，调用相应方法
+            if (window.crystalPreviewInstance) {
+                window.crystalPreviewInstance.togglePolyhedra(isChecked);
+            }
+            
+            // 如果有Crystal Toolkit渲染器，更新渲染参数
+            if (crystalPreview && crystalPreview.renderParams) {
+                crystalPreview.renderParams.showPolyhedra = isChecked;
+                crystalPreview.updateRender(true);
+            }
+        });
+    }
+    
+    // 多面体透明度滑块
+    const polyhedronOpacity = document.getElementById('polyhedronOpacity');
+    const polyhedronOpacityValue = document.getElementById('polyhedronOpacityValue');
+    if (polyhedronOpacity && polyhedronOpacityValue) {
+        polyhedronOpacity.addEventListener('input', function(e) {
+            const opacity = parseFloat(e.target.value);
+            polyhedronOpacityValue.textContent = opacity.toFixed(1);
+            console.log('🔷 多面体透明度:', opacity);
+            
+            // 如果有CrystalPreview实例，调用相应方法
+            if (window.crystalPreviewInstance) {
+                window.crystalPreviewInstance.setPolyhedronOpacity(opacity);
+            }
+            
+            // 如果有Crystal Toolkit渲染器，更新渲染参数
+            if (crystalPreview && crystalPreview.renderParams) {
+                crystalPreview.renderParams.polyhedronOpacity = opacity;
+                crystalPreview.updateRender(true);
+            }
+        });
+    }
+    
+    console.log('✅ 多面体控制事件监听器设置完成');
+}
+
+// 初始化多面体控制状态
+function initPolyhedraControls() {
+    const showPolyhedra = document.getElementById('showPolyhedra');
+    const opacityControl = document.getElementById('polyhedronOpacityControl');
+    
+    // 初始状态下隐藏透明度控制
+    if (opacityControl) {
+        opacityControl.style.display = 'none';
+    }
+    
+    // 如果复选框被选中，显示透明度控制
+    if (showPolyhedra && showPolyhedra.checked && opacityControl) {
+        opacityControl.style.display = 'block';
     }
 }

@@ -12,15 +12,18 @@ import os
 import math
 import numpy as np
 from loguru import logger
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 
 try:
     from pymatgen.core import Structure
     from pymatgen.io.cif import CifParser
     from pymatgen.analysis.local_env import CrystalNN
+    from pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies import SimplestChemenvStrategy
+    from pymatgen.analysis.chemenv.coordination_environments.structure_environments import LightStructureEnvironments, StructureEnvironments
     PYMATGEN_AVAILABLE = True
-except ImportError:
-    logger.error("pymatgen库未安装，请运行: pip install pymatgen")
+except ImportError as e:
+    logger.error(f"pymatgen库导入失败: {e}")
+    logger.error("请运行: pip install pymatgen")
     PYMATGEN_AVAILABLE = False
 
 class PymatgenConverter:
@@ -62,6 +65,64 @@ class PymatgenConverter:
         self.bond_radius = 0.1  # 化学键半径
         self.sphere_resolution = 20  # 球体分辨率
         self.cylinder_resolution = 12  # 圆柱体分辨率
+        
+        # 配位环境分析器
+        self.strategy = SimplestChemenvStrategy(distance_cutoff=1.4, angle_cutoff=0.3)
+        self.crystal_nn = CrystalNN()
+    
+    def _infer_geometry_type(self, coordination_number: int) -> str:
+        """根据配位数推断几何类型"""
+        geometry_map = {
+            2: 'L:2',  # Linear
+            3: 'T:3',  # Trigonal planar
+            4: 'T:4',  # Tetrahedral
+            5: 'S:5',  # Square pyramidal
+            6: 'O:6',  # Octahedral
+            7: 'C:7',  # Capped octahedral
+            8: 'C:8',  # Cubic
+            9: 'C:9',  # Capped square antiprism
+            10: 'C:10', # Bicapped square antiprism
+            11: 'C:11', # 11-coordinate
+            12: 'I:12'  # Icosahedral
+        }
+        return geometry_map.get(coordination_number, f'CN:{coordination_number}')
+    
+    def _select_polyhedra_elements(self, structure: Structure, elements: set) -> set:
+        """选择要显示多面体的元素"""
+        # 常见金属元素列表
+        metals = {'Li', 'Na', 'K', 'Rb', 'Cs', 'Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Ra',
+                 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+                 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
+                 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu',
+                 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+                 'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr',
+                 'Al', 'Ga', 'In', 'Tl', 'Sn', 'Pb', 'Bi'}
+        
+        # 统计每种元素的数量
+        element_counts = {}
+        for site in structure:
+            element = site.specie.symbol
+            element_counts[element] = element_counts.get(element, 0) + 1
+        
+        logger.info(f"元素统计: {element_counts}")
+        
+        # 优先选择策略：
+        # 1. 如果有金属元素，优先选择金属元素
+        # 2. 如果没有金属元素，选择数量较少的元素
+        # 3. 限制最多显示2种元素的多面体，避免过于复杂
+        
+        metal_elements = elements.intersection(metals)
+        if metal_elements:
+            # 如果有多个金属元素，选择数量最少的那个
+            selected = sorted(metal_elements, key=lambda x: element_counts[x])[:1]
+            logger.info(f"选择金属元素: {selected}")
+            return set(selected)
+        else:
+            # 没有金属元素，选择数量最少的元素
+            sorted_elements = sorted(elements, key=lambda x: element_counts[x])
+            selected = sorted_elements[:1]  # 只选择一种元素
+            logger.info(f"选择数量最少的元素: {selected}")
+            return set(selected)
     
     def read_cif(self, cif_file: str) -> Structure:
         """读取CIF文件"""
@@ -111,6 +172,112 @@ class PymatgenConverter:
             
         except Exception as e:
             logger.error(f"计算化学键失败: {e}")
+            return []
+    
+    def analyze_coordination_environments(self, structure: Structure) -> Dict[str, Any]:
+        """分析配位环境和多面体"""
+        try:
+            logger.info(f"开始分析配位环境... 结构包含 {len(structure)} 个原子")
+            logger.info(f"结构公式: {structure.formula}")
+            
+            coordination_data = {
+                'polyhedra': [],
+                'coordination_numbers': {},
+                'geometry_types': {}
+            }
+            
+            # 获取所有元素类型
+            elements = set([site.specie.symbol for site in structure])
+            logger.info(f"结构中的元素: {elements}")
+            
+            # 选择要显示多面体的元素（优先选择金属元素或较少的元素）
+            target_elements = self._select_polyhedra_elements(structure, elements)
+            logger.info(f"选择显示多面体的元素: {target_elements}")
+            
+            # 分析每个原子的配位环境
+            logger.debug(f"开始分析 {len(structure)} 个原子的配位环境...")
+            for i, site in enumerate(structure):
+                try:
+                    logger.debug(f"分析原子 {i} ({site.specie.symbol})...")
+                    
+                    # 使用CrystalNN获取邻居原子
+                    neighbors = self.crystal_nn.get_nn_info(structure, i)
+                    
+                    if not neighbors:
+                        logger.warning(f"原子 {i} 没有找到邻居原子")
+                        continue
+                        
+                    # 获取配位数
+                    coordination_number = len(neighbors)
+                    logger.debug(f"原子 {i} 的配位数: {coordination_number}")
+                    
+                    # 获取配位原子的坐标和元素
+                    neighbor_coords = []
+                    neighbor_elements = []
+                    for neighbor_info in neighbors:
+                        neighbor_site = neighbor_info['site']
+                        neighbor_coords.append(neighbor_site.coords.tolist())
+                        neighbor_elements.append(neighbor_site.specie.symbol)
+                    
+                    # 根据配位数推断几何类型
+                    geometry_type = self._infer_geometry_type(coordination_number)
+                    
+                    # 记录所有原子的配位信息
+                    coordination_data['coordination_numbers'][i] = coordination_number
+                    coordination_data['geometry_types'][i] = geometry_type
+                    
+                    # 只为选定的元素创建多面体
+                    if site.specie.symbol in target_elements:
+                        polyhedron = {
+                            'center_atom_index': i,
+                            'center_element': site.specie.symbol,
+                            'center_coords': site.coords.tolist(),
+                            'geometry_type': geometry_type,
+                            'coordination_number': coordination_number,
+                            'confidence': 1.0,  # CrystalNN的结果默认置信度为1.0
+                            'neighbor_coords': neighbor_coords,
+                            'neighbor_elements': neighbor_elements
+                        }
+                        
+                        coordination_data['polyhedra'].append(polyhedron)
+                        logger.info(f"✅ 创建多面体 - 原子 {i} ({site.specie.symbol}): {geometry_type}, CN={coordination_number}")
+                    else:
+                        logger.debug(f"跳过原子 {i} ({site.specie.symbol}): 不在目标元素列表中")
+                        
+                except Exception as e:
+                    logger.warning(f"分析原子 {i} 的配位环境失败: {e}")
+                    import traceback
+                    logger.debug(f"详细错误信息: {traceback.format_exc()}")
+                    continue
+            
+            logger.info(f"配位环境分析完成，发现 {len(coordination_data['polyhedra'])} 个多面体")
+            return coordination_data
+            
+        except Exception as e:
+            logger.error(f"配位环境分析失败: {e}")
+            return {'polyhedra': [], 'coordination_numbers': {}, 'geometry_types': {}}
+    
+    def generate_polyhedron_faces(self, center_coords: List[float], neighbor_coords: List[List[float]], 
+                                 geometry_type: str) -> List[List[int]]:
+        """生成多面体的面"""
+        try:
+            from scipy.spatial import ConvexHull
+            import numpy as np
+            
+            # 将坐标转换为numpy数组
+            points = np.array(neighbor_coords)
+            
+            if len(points) < 4:
+                return []  # 至少需要4个点才能形成多面体
+            
+            # 计算凸包
+            hull = ConvexHull(points)
+            
+            # 返回面的顶点索引
+            return hull.simplices.tolist()
+            
+        except Exception as e:
+            logger.warning(f"生成多面体面失败: {e}")
             return []
     
     def create_sphere(self, center: Tuple[float, float, float], 
@@ -197,11 +364,16 @@ class PymatgenConverter:
         
         return vertices, faces
     
-    def convert_to_obj(self, structure: Structure, output_file: str) -> bool:
+    def convert_to_obj(self, structure: Structure, output_file: str, include_polyhedra: bool = True) -> bool:
         """将pymatgen Structure转换为OBJ文件"""
         try:
             # 获取化学键
             bonds = self.get_bonds(structure)
+            
+            # 分析配位环境和多面体
+            coordination_data = None
+            if include_polyhedra:
+                coordination_data = self.analyze_coordination_environments(structure)
             
             vertices = []
             faces = []
@@ -224,6 +396,16 @@ class PymatgenConverter:
             materials.append("Ka 0.2 0.2 0.2\n")
             materials.append("Ks 0.5 0.5 0.5\n")
             materials.append("Ns 32\n\n")
+            
+            # 为多面体创建材质
+            if coordination_data and coordination_data['polyhedra']:
+                materials.append("newmtl polyhedron\n")
+                materials.append("Kd 0.3 0.6 0.9\n")  # 蓝色半透明
+                materials.append("Ka 0.1 0.2 0.3\n")
+                materials.append("Ks 0.8 0.8 0.8\n")
+                materials.append("Ns 64\n")
+                materials.append("d 0.3\n")  # 透明度
+                materials.append("\n")
             
             # 写入MTL文件
             mtl_file = output_file.replace('.obj', '.mtl')
@@ -303,10 +485,52 @@ class PymatgenConverter:
                     # 写入化学键的所有面
                     for face in bond_faces:
                         f.write(f"f {face[0]} {face[1]} {face[2]}\n")
+                
+                # 处理配位多面体
+                if coordination_data and coordination_data['polyhedra']:
+                    f.write("\n# 配位多面体\n")
+                    f.write("usemtl polyhedron\n")
+                    
+                    polyhedron_faces = []
+                    
+                    for polyhedron in coordination_data['polyhedra']:
+                        try:
+                            center_coords = polyhedron['center_coords']
+                            neighbor_coords = polyhedron['neighbor_coords']
+                            geometry_type = polyhedron['geometry_type']
+                            
+                            # 生成多面体的面
+                            faces = self.generate_polyhedron_faces(
+                                center_coords, neighbor_coords, geometry_type
+                            )
+                            
+                            if faces:
+                                # 添加配位原子的顶点
+                                polyhedron_vertex_start = vertex_offset
+                                for coord in neighbor_coords:
+                                    f.write(f"v {coord[0]:.6f} {coord[1]:.6f} {coord[2]:.6f}\n")
+                                    vertex_offset += 1
+                                
+                                # 记录多面体的面
+                                for face in faces:
+                                    adjusted_face = tuple(idx + polyhedron_vertex_start + 1 for idx in face)
+                                    polyhedron_faces.append(adjusted_face)
+                                    
+                        except Exception as e:
+                            logger.warning(f"生成多面体失败: {e}")
+                            continue
+                    
+                    # 写入多面体的所有面
+                    for face in polyhedron_faces:
+                        f.write(f"f {face[0]} {face[1]} {face[2]}\n")
+                    
+                    logger.info(f"多面体数量: {len(coordination_data['polyhedra'])}")
             
             logger.success(f"Pymatgen转换成功: {output_file}")
             logger.info(f"原子数量: {len(structure)}")
             logger.info(f"化学键数量: {len(bonds)}")
+            if coordination_data:
+                logger.info(f"多面体数量: {len(coordination_data['polyhedra'])}")
             logger.info(f"顶点数量: {vertex_offset}")
             
             return True

@@ -11,6 +11,7 @@ class CrystalPreview {
         this.animationId = null;
         this.atomGroup = null;
         this.bondGroup = null;
+        this.polyhedronGroup = null;
         
         this.init();
     }
@@ -168,11 +169,14 @@ class CrystalPreview {
     generateCrystalModel(cifData, options) {
         this.atomGroup = new THREE.Group();
         this.bondGroup = new THREE.Group();
+        this.polyhedronGroup = new THREE.Group();
         
         const {
             sphereResolution = 20,
             scaleFactor = 1.0,
             includeBonds = true,
+            includePolyhedra = false,
+            polyhedronOpacity = 0.3,
             cellExpansion = 1
         } = options;
         
@@ -225,9 +229,15 @@ class CrystalPreview {
             this.generateBonds(cifData.atoms, scaleFactor);
         }
         
+        // 如果需要显示配位多面体
+        if (includePolyhedra && cifData.polyhedra) {
+            this.generatePolyhedra(cifData.polyhedra, scaleFactor, polyhedronOpacity);
+        }
+        
         // 添加到场景
         this.scene.add(this.atomGroup);
         this.scene.add(this.bondGroup);
+        this.scene.add(this.polyhedronGroup);
     }
     
     // 生成化学键（简化实现）
@@ -277,6 +287,81 @@ class CrystalPreview {
         this.bondGroup.add(bond);
     }
     
+    // 生成配位多面体
+    generatePolyhedra(polyhedraData, scaleFactor, opacity) {
+        polyhedraData.forEach((polyhedron, index) => {
+            try {
+                const centerCoords = polyhedron.center_coords;
+                const neighborCoords = polyhedron.neighbor_coords;
+                const geometryType = polyhedron.geometry_type;
+                
+                // 转换坐标到Three.js坐标系
+                const center = new THREE.Vector3(
+                    centerCoords[0] * 10 * scaleFactor,
+                    centerCoords[1] * 10 * scaleFactor,
+                    centerCoords[2] * 10 * scaleFactor
+                );
+                
+                const neighbors = neighborCoords.map(coord => new THREE.Vector3(
+                    coord[0] * 10 * scaleFactor,
+                    coord[1] * 10 * scaleFactor,
+                    coord[2] * 10 * scaleFactor
+                ));
+                
+                // 创建多面体几何体
+                const polyhedronMesh = this.createPolyhedronMesh(center, neighbors, geometryType, opacity);
+                if (polyhedronMesh) {
+                    this.polyhedronGroup.add(polyhedronMesh);
+                }
+                
+            } catch (error) {
+                console.warn(`生成多面体 ${index} 失败:`, error);
+            }
+        });
+    }
+    
+    // 创建多面体网格
+    createPolyhedronMesh(center, neighbors, geometryType, opacity) {
+        try {
+            // 使用ConvexGeometry创建凸包
+            const points = [center, ...neighbors];
+            const geometry = new THREE.ConvexGeometry(points);
+            
+            // 根据几何类型选择颜色
+            const colorMap = {
+                'octahedral': 0x4CAF50,    // 绿色
+                'tetrahedral': 0x2196F3,   // 蓝色
+                'square_planar': 0xFF9800, // 橙色
+                'trigonal_bipyramidal': 0x9C27B0, // 紫色
+                'square_pyramidal': 0xF44336,      // 红色
+                'default': 0x607D8B        // 蓝灰色
+            };
+            
+            const color = colorMap[geometryType] || colorMap.default;
+            
+            // 创建半透明材质
+            const material = new THREE.MeshLambertMaterial({
+                color: color,
+                transparent: true,
+                opacity: opacity,
+                side: THREE.DoubleSide
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData = {
+                type: 'polyhedron',
+                geometryType: geometryType,
+                center: center
+            };
+            
+            return mesh;
+            
+        } catch (error) {
+            console.warn('创建多面体网格失败:', error);
+            return null;
+        }
+    }
+    
     // 调整相机位置以适应模型
     fitCameraToModel() {
         if (!this.atomGroup || this.atomGroup.children.length === 0) return;
@@ -307,6 +392,10 @@ class CrystalPreview {
         if (this.bondGroup) {
             this.scene.remove(this.bondGroup);
             this.bondGroup = null;
+        }
+        if (this.polyhedronGroup) {
+            this.scene.remove(this.polyhedronGroup);
+            this.polyhedronGroup = null;
         }
     }
     
@@ -352,6 +441,41 @@ class CrystalPreview {
         this.fitCameraToModel();
     }
     
+    // 切换多面体显示
+    togglePolyhedra(visible) {
+        if (this.polyhedronGroup) {
+            this.polyhedronGroup.visible = visible;
+        }
+    }
+    
+    // 设置多面体透明度
+    setPolyhedronOpacity(opacity) {
+        if (this.polyhedronGroup) {
+            this.polyhedronGroup.children.forEach(mesh => {
+                if (mesh.material && mesh.material.transparent) {
+                    mesh.material.opacity = opacity;
+                }
+            });
+        }
+    }
+    
+    // 获取多面体信息
+    getPolyhedronInfo() {
+        if (!this.polyhedronGroup) return null;
+        
+        const info = {
+            count: this.polyhedronGroup.children.length,
+            types: {}
+        };
+        
+        this.polyhedronGroup.children.forEach(mesh => {
+            const geometryType = mesh.userData.geometryType || 'unknown';
+            info.types[geometryType] = (info.types[geometryType] || 0) + 1;
+        });
+        
+        return info;
+    }
+    
     // 销毁预览器
     destroy() {
         if (this.animationId) {
@@ -363,4 +487,4 @@ class CrystalPreview {
         }
         this.container.innerHTML = '';
     }
-} 
+}

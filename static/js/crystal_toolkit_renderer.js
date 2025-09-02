@@ -17,7 +17,9 @@ class CrystalToolkitRenderer {
             showAtoms: true,
             showBonds: true,
             showUnitCell: true,
-            includeBonds: true
+            includeBonds: true,
+            showPolyhedra: true,
+            polyhedronOpacity: 0.3
         };
         
         this.init();
@@ -313,6 +315,21 @@ class CrystalToolkitRenderer {
                             <input type="checkbox" id="fullscreenShowUnitCell" ${this.renderParams.showUnitCell ? 'checked' : ''}>
                             <i class="bi bi-bounding-box" style="color: #06b6d4;"></i> 晶胞
                         </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" id="fullscreenShowPolyhedra" ${this.renderParams.showPolyhedra ? 'checked' : ''}>
+                            <i class="bi bi-hexagon" style="color: #8b5cf6;"></i> 多面体
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 多面体透明度控制 -->
+                <div style="flex: 1; min-width: 200px; display: ${this.renderParams.showPolyhedra ? 'block' : 'none'};" id="fullscreenPolyhedronOpacityControl">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <i class="bi bi-transparency" style="color: #8b5cf6;"></i> 多面体透明度
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="fullscreenPolyhedronOpacity" min="0.1" max="1.0" step="0.1" value="${this.renderParams.polyhedronOpacity}" style="flex: 1; height: 6px; background: linear-gradient(to right, #8b5cf6, #a78bfa); border-radius: 3px; outline: none;">
+                        <span id="fullscreenPolyhedronOpacityValue" style="font-size: 11px; font-weight: 600; color: #8b5cf6; min-width: 30px;">${this.renderParams.polyhedronOpacity.toFixed(1)}</span>
                     </div>
                 </div>
                 
@@ -383,6 +400,7 @@ class CrystalToolkitRenderer {
         const showAtoms = document.getElementById('fullscreenShowAtoms');
         const showBonds = document.getElementById('fullscreenShowBonds');
         const showUnitCell = document.getElementById('fullscreenShowUnitCell');
+        const showPolyhedra = document.getElementById('fullscreenShowPolyhedra');
         
         if (showAtoms) {
             showAtoms.addEventListener('change', (e) => {
@@ -420,6 +438,48 @@ class CrystalToolkitRenderer {
                 const originalShowUnitCell = document.getElementById('showUnitCell');
                 if (originalShowUnitCell) {
                     originalShowUnitCell.checked = e.target.checked;
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        if (showPolyhedra) {
+            showPolyhedra.addEventListener('change', (e) => {
+                this.renderParams.showPolyhedra = e.target.checked;
+                
+                // 显示/隐藏透明度控制
+                const opacityControl = document.getElementById('fullscreenPolyhedronOpacityControl');
+                if (opacityControl) {
+                    opacityControl.style.display = e.target.checked ? 'block' : 'none';
+                }
+                
+                // 同步更新原有控制面板的值
+                const originalShowPolyhedra = document.getElementById('showPolyhedra');
+                if (originalShowPolyhedra) {
+                    originalShowPolyhedra.checked = e.target.checked;
+                }
+                
+                this.updateRender(true);
+            });
+        }
+        
+        // 多面体透明度控制
+        const polyhedronOpacity = document.getElementById('fullscreenPolyhedronOpacity');
+        const polyhedronOpacityValue = document.getElementById('fullscreenPolyhedronOpacityValue');
+        if (polyhedronOpacity && polyhedronOpacityValue) {
+            polyhedronOpacity.addEventListener('input', (e) => {
+                this.renderParams.polyhedronOpacity = parseFloat(e.target.value);
+                polyhedronOpacityValue.textContent = parseFloat(e.target.value).toFixed(1);
+                
+                // 同步更新原有控制面板的值
+                const originalPolyhedronOpacity = document.getElementById('polyhedronOpacity');
+                const originalPolyhedronOpacityValue = document.getElementById('polyhedronOpacityValue');
+                if (originalPolyhedronOpacity) {
+                    originalPolyhedronOpacity.value = e.target.value;
+                }
+                if (originalPolyhedronOpacityValue) {
+                    originalPolyhedronOpacityValue.textContent = parseFloat(e.target.value).toFixed(1);
                 }
                 
                 this.updateRender(true);
@@ -498,6 +558,7 @@ class CrystalToolkitRenderer {
         const showAtoms = document.getElementById('showAtoms');
         const showBonds = document.getElementById('showBonds');
         const showUnitCell = document.getElementById('showUnitCell');
+        const showPolyhedra = document.getElementById('showPolyhedra');
         const includeBonds = document.getElementById('includeBonds');
         
         if (showAtoms) {
@@ -548,6 +609,60 @@ class CrystalToolkitRenderer {
             });
         }
         
+        if (showPolyhedra) {
+            // 初始化复选框状态
+            showPolyhedra.checked = this.renderParams.showPolyhedra;
+            showPolyhedra.addEventListener('change', (e) => {
+                this.renderParams.showPolyhedra = e.target.checked;
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenShowPolyhedra = document.getElementById('fullscreenShowPolyhedra');
+                if (fullscreenShowPolyhedra) {
+                    fullscreenShowPolyhedra.checked = e.target.checked;
+                }
+                
+                // 控制透明度滑块的显示/隐藏
+                const polyhedronOpacityControl = document.getElementById('polyhedronOpacityControl');
+                if (polyhedronOpacityControl) {
+                    polyhedronOpacityControl.style.display = e.target.checked ? 'block' : 'none';
+                }
+                
+                this.updateRender(true); // 保持相机位置
+            });
+        }
+        
+        // 多面体透明度控制
+        const polyhedronOpacity = document.getElementById('polyhedronOpacity');
+        if (polyhedronOpacity) {
+            // 初始化滑块状态
+            polyhedronOpacity.value = this.renderParams.polyhedronOpacity;
+            const polyhedronOpacityValue = document.getElementById('polyhedronOpacityValue');
+            if (polyhedronOpacityValue) {
+                polyhedronOpacityValue.textContent = this.renderParams.polyhedronOpacity;
+            }
+            
+            polyhedronOpacity.addEventListener('input', (e) => {
+                this.renderParams.polyhedronOpacity = parseFloat(e.target.value);
+                
+                // 更新显示的数值
+                if (polyhedronOpacityValue) {
+                    polyhedronOpacityValue.textContent = e.target.value;
+                }
+                
+                // 同步更新全屏控制面板的值
+                const fullscreenPolyhedronOpacity = document.getElementById('fullscreenPolyhedronOpacity');
+                const fullscreenPolyhedronOpacityValue = document.getElementById('fullscreenPolyhedronOpacityValue');
+                if (fullscreenPolyhedronOpacity) {
+                    fullscreenPolyhedronOpacity.value = e.target.value;
+                }
+                if (fullscreenPolyhedronOpacityValue) {
+                    fullscreenPolyhedronOpacityValue.textContent = e.target.value;
+                }
+                
+                this.updateRender(true); // 保持相机位置
+            });
+        }
+        
         if (includeBonds) {
             // 初始化复选框状态
             includeBonds.checked = this.renderParams.includeBonds;
@@ -562,6 +677,9 @@ class CrystalToolkitRenderer {
     
     loadStructure(structure) {
         console.log('🔬 Crystal Toolkit加载结构...', structure);
+        console.log('🔍 检查多面体数据:', structure.polyhedra);
+        console.log('🔍 多面体数据类型:', typeof structure.polyhedra);
+        console.log('🔍 多面体数据长度:', structure.polyhedra ? structure.polyhedra.length : 'undefined');
         
         if (!this.container) {
             console.error('❌ 容器不存在:', this.containerId);
@@ -892,14 +1010,30 @@ class CrystalToolkitRenderer {
             }
         }
         
-        // 3. 晶胞渲染（如果启用）
+        // 3. 多面体渲染（如果启用）
+        console.log('🔍 多面体渲染检查:');
+        console.log('  - showPolyhedra:', this.renderParams.showPolyhedra);
+        console.log('  - structure.polyhedra存在:', !!structure.polyhedra);
+        console.log('  - structure.polyhedra是数组:', Array.isArray(structure.polyhedra));
+        console.log('  - structure.polyhedra内容:', structure.polyhedra);
+        
+        if (this.renderParams.showPolyhedra && structure.polyhedra && Array.isArray(structure.polyhedra)) {
+            console.log('🔷 开始处理多面体...');
+            const polyhedronTraces = this.createPolyhedronTraces(structure.polyhedra);
+            traces.push(...polyhedronTraces);
+            console.log(`✅ 添加了 ${polyhedronTraces.length} 个多面体`);
+        } else {
+            console.log('❌ 多面体渲染条件不满足');
+        }
+
+        // 4. 晶胞渲染（如果启用）
         if (this.renderParams.showUnitCell) {
             console.log('📦 开始处理晶胞...');
             const unitCellTrace = this.createUnitCellTrace(structure.lattice);
             traces.push(unitCellTrace);
             console.log('✅ 添加了晶胞边框');
         }
-        
+
         console.log(`🎯 总共生成了 ${traces.length} 个Plotly traces`);
         return traces;
     }
@@ -1775,6 +1909,200 @@ class CrystalToolkitRenderer {
         });
         
         return camera;
+    }
+
+    // 创建多面体Plotly traces
+    createPolyhedronTraces(polyhedraData) {
+        const traces = [];
+        
+        if (!Array.isArray(polyhedraData) || polyhedraData.length === 0) {
+            console.warn('⚠️ 多面体数据无效或为空');
+            return traces;
+        }
+        
+        console.log('🔷 处理多面体数据:', polyhedraData);
+        
+        // 多面体颜色映射
+        const polyhedronColors = {
+            'octahedral': '#4CAF50',      // 绿色
+            'tetrahedral': '#2196F3',     // 蓝色
+            'square_planar': '#FF9800',   // 橙色
+            'trigonal_bipyramidal': '#9C27B0', // 紫色
+            'square_pyramidal': '#F44336',      // 红色
+            'trigonal_planar': '#00BCD4',       // 青色
+            'linear': '#795548',                // 棕色
+            'default': '#607D8B'                // 蓝灰色
+        };
+        
+        polyhedraData.forEach((polyhedron, index) => {
+            try {
+                if (!polyhedron.center_coords || !polyhedron.neighbor_coords) {
+                    console.warn(`⚠️ 多面体 ${index} 缺少必要的坐标数据:`, polyhedron);
+                    return;
+                }
+                
+                const centerCoords = polyhedron.center_coords;
+                const neighborCoords = polyhedron.neighbor_coords;
+                const geometryType = polyhedron.geometry_type || 'default';
+                
+                // 转换坐标到笛卡尔坐标系（如果需要）
+                const center = Array.isArray(centerCoords) ? centerCoords : [0, 0, 0];
+                const neighbors = Array.isArray(neighborCoords) ? neighborCoords : [];
+                
+                if (neighbors.length === 0) {
+                    console.warn(`⚠️ 多面体 ${index} 没有邻居原子坐标`);
+                    return;
+                }
+                
+                // 应用中心偏移（与原子坐标保持一致）
+                const adjustedCenter = this.centerOffset ? [
+                    center[0] - this.centerOffset.x,
+                    center[1] - this.centerOffset.y,
+                    center[2] - this.centerOffset.z
+                ] : center;
+                
+                const adjustedNeighbors = neighbors.map(coord => {
+                    return this.centerOffset ? [
+                        coord[0] - this.centerOffset.x,
+                        coord[1] - this.centerOffset.y,
+                        coord[2] - this.centerOffset.z
+                    ] : coord;
+                });
+                
+                // 创建多面体的凸包
+                const polyhedronTrace = this.createPolyhedronMesh3D(
+                    adjustedCenter, 
+                    adjustedNeighbors, 
+                    geometryType, 
+                    polyhedronColors
+                );
+                
+                if (polyhedronTrace) {
+                    traces.push(polyhedronTrace);
+                }
+                
+            } catch (error) {
+                console.warn(`❌ 创建多面体 ${index} 失败:`, error);
+            }
+        });
+        
+        console.log(`🔷 成功创建了 ${traces.length} 个多面体traces`);
+        return traces;
+    }
+    
+    // 创建单个多面体的3D网格
+    createPolyhedronMesh3D(center, neighbors, geometryType, colorMap) {
+        try {
+            // 所有顶点（中心 + 邻居）
+            const allPoints = [center, ...neighbors];
+            
+            // 使用简化的凸包算法创建多面体面
+            const faces = this.calculateConvexHull(allPoints);
+            
+            if (faces.length === 0) {
+                console.warn('⚠️ 无法为多面体创建面');
+                return null;
+            }
+            
+            // 提取所有面的顶点坐标
+            const x = [], y = [], z = [];
+            const i = [], j = [], k = []; // 面的顶点索引
+            
+            // 创建顶点数组
+            allPoints.forEach(point => {
+                x.push(point[0]);
+                y.push(point[1]);
+                z.push(point[2]);
+            });
+            
+            // 创建面的索引
+            faces.forEach(face => {
+                if (face.length >= 3) {
+                    // 三角化面（如果面有超过3个顶点）
+                    for (let t = 1; t < face.length - 1; t++) {
+                        i.push(face[0]);
+                        j.push(face[t]);
+                        k.push(face[t + 1]);
+                    }
+                }
+            });
+            
+            // 选择颜色
+            const color = colorMap[geometryType] || colorMap.default;
+            
+            // 创建Plotly mesh3d trace
+            const trace = {
+                type: 'mesh3d',
+                x: x,
+                y: y,
+                z: z,
+                i: i,
+                j: j,
+                k: k,
+                color: color,
+                opacity: this.renderParams.polyhedronOpacity,
+                name: `${geometryType} polyhedron`,
+                showlegend: false,
+                hoverinfo: 'text',
+                text: `${geometryType} coordination polyhedron`,
+                lighting: {
+                    ambient: 0.4,
+                    diffuse: 0.8,
+                    specular: 0.2,
+                    roughness: 0.1
+                },
+                lightposition: {
+                    x: 100,
+                    y: 200,
+                    z: 0
+                }
+            };
+            
+            return trace;
+            
+        } catch (error) {
+            console.warn('❌ 创建多面体网格失败:', error);
+            return null;
+        }
+    }
+    
+    // 简化的凸包算法（用于创建多面体面）
+    calculateConvexHull(points) {
+        if (points.length < 4) {
+            return [];
+        }
+        
+        try {
+            // 简化版本：为小型多面体创建基本面
+            // 这里使用一个简化的方法，实际应用中可能需要更复杂的凸包算法
+            const faces = [];
+            const n = points.length;
+            
+            // 对于小型多面体，创建基本的三角面
+            if (n <= 6) {
+                // 简单情况：创建连接中心点（索引0）和其他点的面
+                for (let i = 1; i < n - 1; i++) {
+                    faces.push([0, i, i + 1]);
+                }
+                // 闭合最后一个面
+                if (n > 2) {
+                    faces.push([0, n - 1, 1]);
+                }
+            } else {
+                // 复杂情况：使用更复杂的面生成逻辑
+                // 这里简化为基本的扇形面
+                for (let i = 1; i < n - 1; i++) {
+                    faces.push([0, i, i + 1]);
+                }
+                faces.push([0, n - 1, 1]);
+            }
+            
+            return faces;
+            
+        } catch (error) {
+            console.warn('❌ 计算凸包失败:', error);
+            return [];
+        }
     }
 }
 

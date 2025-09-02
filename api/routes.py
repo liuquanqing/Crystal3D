@@ -391,6 +391,8 @@ async def download_file(session_id: str):
 @app.post("/parse_cif")
 async def parse_cif_file(file: UploadFile = File(...)):
     """解析CIF文件"""
+    import sys
+    
     if not file.filename.endswith('.cif'):
         raise HTTPException(status_code=400, detail="只支持CIF文件格式")
     
@@ -426,6 +428,24 @@ async def parse_cif_file(file: UploadFile = File(...)):
                 logger.warning(f"无法获取空间群信息: {e}")
                 space_group = "Unknown"
                 space_group_number = 0
+            
+            # 提取多面体数据
+            coordination_data = None
+            try:
+                # 添加项目根目录到Python路径
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if project_root not in sys.path:
+                    sys.path.insert(0, project_root)
+                
+                from pymatgen_converter import PymatgenConverter
+                pymatgen_converter = PymatgenConverter()
+                coordination_data = pymatgen_converter.analyze_coordination_environments(structure)
+                logger.info(f"成功提取多面体数据: {len(coordination_data.get('polyhedra', []))} 个多面体")
+            except Exception as e:
+                logger.warning(f"提取多面体数据失败: {e}")
+                import traceback
+                logger.debug(f"详细错误信息: {traceback.format_exc()}")
+                coordination_data = {'polyhedra': [], 'coordination_numbers': {}, 'geometry_types': {}}
             
             # 计算原子总数（考虑占位）
             total_atoms = sum(sum(spec.values()) for site in structure.sites for spec in [site.species])
@@ -478,12 +498,25 @@ async def parse_cif_file(file: UploadFile = File(...)):
                 "formula": structure.formula
             }
             
-            return {
+            # 构建响应数据
+            response_data = {
                 "success": True,
                 "structure": structure_data,
                 "metadata": metadata,
                 "source": "pymatgen"
             }
+            
+            # 添加多面体数据
+            if coordination_data and coordination_data.get('polyhedra'):
+                response_data["polyhedra"] = coordination_data['polyhedra']
+                response_data["coordination_data"] = coordination_data
+                logger.info(f"返回多面体数据: {len(coordination_data['polyhedra'])} 个多面体")
+            else:
+                response_data["polyhedra"] = []
+                response_data["coordination_data"] = {'polyhedra': [], 'coordination_numbers': {}, 'geometry_types': {}}
+                logger.info("未找到多面体数据")
+            
+            return response_data
             
         except Exception as e:
             logger.error(f"Pymatgen解析失败: {e}")
@@ -515,7 +548,6 @@ async def parse_cif_file(file: UploadFile = File(...)):
     finally:
         # 清理临时文件
         if temp_dir and os.path.exists(temp_dir):
-            import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 @app.post("/convert")
