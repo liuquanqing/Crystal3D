@@ -92,14 +92,44 @@ node_modules/
 # Conda environment
 .conda/
 
-# TinyUSDZ build files
-tinyusdz/build/
-tinyusdz/.github/
-tinyusdz/android/
-tinyusdz/benchmarks/
-tinyusdz/screenshots/
-tinyusdz/tests/
-tinyusdz/web/dist/
+# TinyUSDZ (已禁用)
+tinyusdz/
+
+# Additional temporary and cache files
+temp/
+*.tmp
+*.cache
+.pytest_cache/
+
+# IDE and editor files
+*.sublime-*
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# Documentation builds
+docs/_build/
+docs/build/
 
 # USD resources cache
 usd_resources/cache/

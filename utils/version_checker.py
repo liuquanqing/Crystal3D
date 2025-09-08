@@ -76,43 +76,53 @@ class ComponentVersionChecker:
             )
     
     def check_tinyusdz(self):
-        """检查TinyUSDZ版本"""
-        if not self.tinyusdz_path.exists():
-            return VersionInfo(
-                name="TinyUSDZ",
-                available=False
-            )
-        
-        # 检查本地版本
-        current_version = self._get_tinyusdz_local_version()
-        
-        # 检查最新版本
-        latest_version = None
-        update_available = False
-        
-        try:
-            response = requests.get(
-                "https://api.github.com/repos/lighttransport/tinyusdz/releases/latest",
-                timeout=5
-            )
-            if response.status_code == 200:
-                data = response.json()
-                latest_version = data['tag_name']
-                if current_version and current_version != "Unknown":
-                    update_available = current_version != latest_version
-        except Exception as e:
-            logger.warning(f"无法检查TinyUSDZ最新版本: {e}")
-        
-        # 检查模块可用性
-        available = self._check_tinyusdz_available()
-        
+        """检查TinyUSDZ版本 - 已禁用"""
+        # TinyUSDZ已禁用 - 直接返回不可用状态
         return VersionInfo(
             name="TinyUSDZ",
-            current_version=current_version,
-            latest_version=latest_version,
-            available=available,
-            update_available=update_available
+            available=False,
+            current_version="已禁用",
+            latest_version=None,
+            update_available=False
         )
+        
+        # 保留原始代码以备将来使用
+        # if not self.tinyusdz_path.exists():
+        #     return VersionInfo(
+        #         name="TinyUSDZ",
+        #         available=False
+        #     )
+        # 
+        # # 检查本地版本
+        # current_version = self._get_tinyusdz_local_version()
+        # 
+        # # 检查最新版本
+        # latest_version = None
+        # update_available = False
+        # 
+        # try:
+        #     response = requests.get(
+        #         "https://api.github.com/repos/lighttransport/tinyusdz/releases/latest",
+        #         timeout=5
+        #     )
+        #     if response.status_code == 200:
+        #         data = response.json()
+        #         latest_version = data['tag_name']
+        #         if current_version and current_version != "Unknown":
+        #             update_available = current_version != latest_version
+        # except Exception as e:
+        #     logger.warning(f"无法检查TinyUSDZ最新版本: {e}")
+        # 
+        # # 检查模块可用性
+        # available = self._check_tinyusdz_available()
+        # 
+        # return VersionInfo(
+        #     name="TinyUSDZ",
+        #     current_version=current_version,
+        #     latest_version=latest_version,
+        #     available=available,
+        #     update_available=update_available
+        # )
     
     def _get_tinyusdz_local_version(self):
         """获取TinyUSDZ本地版本"""

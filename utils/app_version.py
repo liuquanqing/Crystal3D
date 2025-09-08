@@ -176,29 +176,38 @@ def get_system_components_info() -> Dict[str, Dict[str, Any]]:
         "description": "3D场景描述"
     }
     
-    # TinyUSDZ（GitHub版本检查）
-    tinyusdz_version = "25.07 v0.9.0"
-    tinyusdz_update_available = False
+    # TinyUSDZ已禁用 - 保留代码以备将来使用
+    # tinyusdz_version = "25.07 v0.9.0"
+    # tinyusdz_update_available = False
+    # 
+    # try:
+    #     # 检查TinyUSDZ的GitHub最新版本
+    #     response = requests.get("https://api.github.com/repos/syoyo/tinyusdz/releases/latest", timeout=10)
+    #     if response.status_code == 200:
+    #         data = response.json()
+    #         latest_tag = data['tag_name'].lstrip('v')
+    #         # 简单比较版本（假设当前版本格式为 "25.07 v0.9.0"）
+    #         current_version_num = "0.9.0"
+    #         if compare_versions(current_version_num, latest_tag):
+    #             tinyusdz_update_available = True
+    # except Exception as e:
+    #     logger.debug(f"检查TinyUSDZ更新失败: {e}")
+    # 
+    # components["tinyusdz"] = {
+    #     "name": "TinyUSDZ",
+    #     "version": tinyusdz_version,
+    #     "available": True,
+    #     "update_available": tinyusdz_update_available,
+    #     "description": "USD轻量级处理（GitHub版本）"
+    # }
     
-    try:
-        # 检查TinyUSDZ的GitHub最新版本
-        response = requests.get("https://api.github.com/repos/syoyo/tinyusdz/releases/latest", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            latest_tag = data['tag_name'].lstrip('v')
-            # 简单比较版本（假设当前版本格式为 "25.07 v0.9.0"）
-            current_version_num = "0.9.0"
-            if compare_versions(current_version_num, latest_tag):
-                tinyusdz_update_available = True
-    except Exception as e:
-        logger.debug(f"检查TinyUSDZ更新失败: {e}")
-    
+    # TinyUSDZ已禁用
     components["tinyusdz"] = {
         "name": "TinyUSDZ",
-        "version": tinyusdz_version,
-        "available": True,
-        "update_available": tinyusdz_update_available,
-        "description": "USD轻量级处理（GitHub版本）"
+        "version": "已禁用",
+        "available": False,
+        "update_available": False,
+        "description": "USD轻量级处理（已禁用）"
     }
     
     return components

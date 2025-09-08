@@ -51,6 +51,8 @@ class ProfessionalCIFClient {
                     console.log(`🔷 发现 ${result.polyhedra.length} 个多面体`);
                     response.polyhedra = result.polyhedra;
                     response.coordination_data = result.coordination_data;
+                    // 同时将多面体数据添加到structure对象中
+                    response.structure.polyhedra = result.polyhedra;
                 }
                 
                 return response;

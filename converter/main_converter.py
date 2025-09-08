@@ -26,11 +26,13 @@ except ImportError:
     logger.warning("无法导入USDZConverter")
     USDZConverter = None
 
-try:
-    from .tinyusdz_converter import TinyUSDZConverter
-except ImportError:
-    logger.warning("无法导入TinyUSDZConverter")
-    TinyUSDZConverter = None
+# TinyUSDZ转换器已禁用 - 保留代码以备将来使用
+# try:
+#     from .tinyusdz_converter import TinyUSDZConverter
+# except ImportError:
+#     logger.warning("无法导入TinyUSDZConverter")
+#     TinyUSDZConverter = None
+TinyUSDZConverter = None
 
 try:
     from .apple_usd_converter import AppleUSDConverter
@@ -78,12 +80,13 @@ class CIFToUSDZConverter:
             except Exception as e:
                 logger.warning(f"USDZConverter 初始化失败: {e}")
         
-        if TinyUSDZConverter:
-            try:
-                self.usdz_converters['tinyusdz'] = TinyUSDZConverter()
-                logger.info("TinyUSDZConverter 初始化成功")
-            except Exception as e:
-                logger.warning(f"TinyUSDZConverter 初始化失败: {e}")
+        # TinyUSDZConverter已禁用 - 保留代码以备将来使用
+        # if TinyUSDZConverter:
+        #     try:
+        #         self.usdz_converters['tinyusdz'] = TinyUSDZConverter()
+        #         logger.info("TinyUSDZConverter 初始化成功")
+        #     except Exception as e:
+        #         logger.warning(f"TinyUSDZConverter 初始化失败: {e}")
         
         if AppleUSDConverter:
             try:
@@ -299,18 +302,19 @@ class CIFToUSDZConverter:
             if not os.path.exists(mtl_file_path):
                 mtl_file_path = None
             
-            # 定义转换器优先级列表：Pixar USD第一，TinyUSDZ第二，Apple USD第三，Docker第四
+            # 定义转换器优先级列表：Pixar USD第一，Apple USD第二，Docker第三
+            # TinyUSDZ已禁用 - 从优先级列表中移除
             converter_priority = [
                 {
                     'name': 'Pixar USD',
                     'key': 'pixar_usd',
                     'method': 'convert_obj_to_usdz'
                 },
-                {
-                    'name': 'TinyUSDZ', 
-                    'key': 'tinyusdz',
-                    'method': 'convert_obj_to_usdz'
-                },
+                # {
+                #     'name': 'TinyUSDZ', 
+                #     'key': 'tinyusdz',
+                #     'method': 'convert_obj_to_usdz'
+                # },
                 {
                     'name': 'Apple USD',
                     'key': 'apple_usd', 

@@ -2126,13 +2126,31 @@ function initPolyhedraControls() {
     const showPolyhedra = document.getElementById('showPolyhedra');
     const opacityControl = document.getElementById('polyhedronOpacityControl');
     
-    // 初始状态下隐藏透明度控制
-    if (opacityControl) {
-        opacityControl.style.display = 'none';
+    console.log('🔧 初始化多面体控制...');
+    console.log('  - showPolyhedra元素:', !!showPolyhedra);
+    console.log('  - showPolyhedra.checked:', showPolyhedra ? showPolyhedra.checked : 'N/A');
+    console.log('  - crystalPreview存在:', !!crystalPreview);
+    
+    // 确保crystalPreview的渲染参数与复选框状态同步
+    if (crystalPreview && showPolyhedra) {
+        crystalPreview.renderParams.showPolyhedra = showPolyhedra.checked;
+        console.log('  - 同步渲染参数showPolyhedra:', crystalPreview.renderParams.showPolyhedra);
+        
+        // 如果有当前结构，立即重新渲染
+        if (crystalPreview.currentStructure) {
+            console.log('  - 重新渲染以应用多面体设置');
+            crystalPreview.updateRender(true);
+        }
     }
     
-    // 如果复选框被选中，显示透明度控制
-    if (showPolyhedra && showPolyhedra.checked && opacityControl) {
-        opacityControl.style.display = 'block';
+    // 控制透明度控件的显示
+    if (opacityControl) {
+        if (showPolyhedra && showPolyhedra.checked) {
+            opacityControl.style.display = 'block';
+        } else {
+            opacityControl.style.display = 'none';
+        }
     }
+    
+    console.log('✅ 多面体控制初始化完成');
 }
